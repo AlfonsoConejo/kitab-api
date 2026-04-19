@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
-import { pool } from './db.js';
+import { pool } from './config/db.js';
+import authRoutes from "./modules/auth/auth.routes.js";
 
 const app = express();
 
@@ -16,6 +17,8 @@ app.get('/api/test', async (req, res) => {
     res.status(500).json({ error: 'Error conectando a la DB' });
   }
 });
+
+app.use("/api/auth", authRoutes);
 
 app.listen(3000, () => {
   console.log('Backend running on http://localhost:3000');
