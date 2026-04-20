@@ -4,10 +4,10 @@ import bcrypt from "bcrypt";
 
 export const register = async (req, res) => {
     try{
-        const { name, lastName, email, password } = req.body;
+        const { firstName, lastName, email, password } = req.body;
 
         // Validación
-        if (!name || !lastName || !email || !password) {
+        if (!firstName || !lastName || !email || !password) {
         return res.status(400).json({
             message: "Todos los campos son obligatorios"
         });
@@ -33,7 +33,7 @@ export const register = async (req, res) => {
             `INSERT INTO users (first_name, last_name, email, password_hash)
             VALUES ($1, $2, $3, $4)
             RETURNING id, first_name, last_name, email, password_hash`,
-            [name, lastName, email, hashedPassword]
+            [firstName, lastName, email, hashedPassword]
         );
 
         const user = result.rows[0];
