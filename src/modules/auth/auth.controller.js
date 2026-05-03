@@ -3,54 +3,61 @@ import bcrypt from "bcrypt";
 
 
 export const register = async (req, res) => {
-    try{
-        let { firstName, lastName, email, password } = req.body;
+  try {
+    let { firstName, lastName, email, password } = req.body;
 
-        firstName = req.body.firstName?.trim();
-        lastName = req.body.lastName?.trim();
-        email = req.body.email?.trim().toLowerCase();
+    firstName = firstName?.trim();
+    lastName = lastName?.trim();
+    email = email?.trim().toLowerCase();
 
-        // Validación
-        if (!firstName || !lastName || !email || !password) {
-        return res.status(400).json({
-            message: "Todos los campos son obligatorios"
-        });
-        }
+    // Validations
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).json({
+        message: "All fields are required"
+      });
+    }
 
-        // Verificar si ya existe
-        const existingUser = await pool.query(
-        "SELECT id FROM users WHERE email = $1",
-        [email]
-        );
+    if (lastName.length < 2) {
+      return res.status(400).json({
+        message: "Last name must contain at least 2 characters"
+      });
+    }
 
-        if (existingUser.rows.length > 0) {
-        return res.status(409).json({
-            message: "El usuario ya existe"
-        });
-        }
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      return res.status(400).json({
+        message: "Invalid email"
+      });
+    }
 
-        // Hash de contraseña
-        const hashedPassword = await bcrypt.hash(password, 10);
+    if (password.length < 6) {
+      return res.status(400).json({
+        message: "Password must contain at least 6 characters"
+      });
+    }
 
-        // Insertar usuario
-        const result = await pool.query(
-            `INSERT INTO users (first_name, last_name, email, password_hash)
-            VALUES ($1, $2, $3, $4)
-            RETURNING id, first_name, last_name, email, password_hash`,
-            [firstName, lastName, email, hashedPassword]
-        );
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-        const user = result.rows[0];
+    const result = await pool.query(
+      `INSERT INTO users (first_name, last_name, email, password_hash)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, first_name, last_name, email`,
+      [firstName, lastName, email, hashedPassword]
+    );
 
-        // 5. Respuesta
-            res.status(201).json({
-            message: "Usuario creado correctamente",
-            user
-        });
+    res.status(201).json({
+      message: "User created successfully",
+      user: result.rows[0]
+    });
 
-    } catch (error) {
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({
+        message: "El usuario ya existe"
+      });
+    }
+
     res.status(500).json({
-      message: "Error en el servidor",
+      message: "Server error",
       error: error.message
     });
   }
