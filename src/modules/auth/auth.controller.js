@@ -4,7 +4,11 @@ import bcrypt from "bcrypt";
 
 export const register = async (req, res) => {
     try{
-        const { firstName, lastName, email, password } = req.body;
+        let { firstName, lastName, email, password } = req.body;
+
+        firstName = req.body.firstName?.trim();
+        lastName = req.body.lastName?.trim();
+        email = req.body.email?.trim().toLowerCase();
 
         // Validación
         if (!firstName || !lastName || !email || !password) {
