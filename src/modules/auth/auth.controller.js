@@ -62,3 +62,45 @@ export const register = async (req, res) => {
     });
   }
 };
+
+export const login = async (req, res) => {
+  try {
+    let { email, password } = req.body;
+
+    //Verify if user exists on database
+    const result = await pool.query(
+      `SELECT id, email, password_hash
+       FROM users
+       WHERE email = $1`,
+      [email]
+    );
+
+    if (result.rows.length === 0){
+      return res.status(401).json({message: "Usuario o contraseña incorrectos."})
+    }
+
+    const user = result.rows[0];
+    
+    //Comparing passwords with bcrypt
+    const isMatch = await bcrypt.compare(
+      password,
+      user.password_hash
+    );
+
+    if (!isMatch) {
+      return res.status(401).json({
+        message: "Usuario o contraseña incorrectos."
+      });
+    }
+
+    return res.status(200).json({
+      message: "User authenticated."
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
