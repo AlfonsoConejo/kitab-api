@@ -13,7 +13,7 @@ export const register = async (req, res) => {
     // Validations
     if (!firstName || !lastName || !email || !password) {
       return res.status(400).json({
-        message: "All fields are required"
+        message: "Todos los campos son obligatorios."
       });
     }
 
@@ -31,7 +31,7 @@ export const register = async (req, res) => {
 
     if (password.length < 6) {
       return res.status(400).json({
-        message: "Password must contain at least 6 characters"
+        message: "La contraseña debe contener al menos 6 caracteres."
       });
     }
 
@@ -66,6 +66,21 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   try {
     let { email, password } = req.body;
+
+    email = email?.trim().toLowerCase();
+
+    //Validations
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Todos los campos son obligatorios."
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        message: "La contraseña debe contener al menos 6 caracteres."
+      });
+    }
 
     //Verify if user exists on database
     const result = await pool.query(
