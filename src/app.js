@@ -2,11 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import { pool } from './config/db.js';
 import authRoutes from "./modules/auth/auth.routes.js";
+import cookieParser from "cookie-parser";
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
 
 app.get('/api/test', async (req, res) => {
   try {

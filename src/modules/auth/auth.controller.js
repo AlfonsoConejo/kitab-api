@@ -1,6 +1,6 @@
 import { pool } from "../../config/db.js";
 import bcrypt from "bcrypt";
-
+import jwt from "jsonwebtoken"
 
 export const register = async (req, res) => {
   try {
@@ -81,7 +81,7 @@ export const login = async (req, res) => {
 
     const user = result.rows[0];
     
-    //Comparing passwords with bcrypt
+    // Comparing passwords with bcrypt
     const isMatch = await bcrypt.compare(
       password,
       user.password_hash
@@ -93,8 +93,19 @@ export const login = async (req, res) => {
       });
     }
 
-    return res.status(200).json({
-      message: "User authenticated."
+    // Create JWT
+    const payload = {id: user.id, email: user.email}
+    const token = jwt.sign(
+      payload,
+      process.env.JWT_SECRET,
+      {expiresIn: "15m"}
+    );
+
+    return res.cookie("token", token, {
+      httpOnly: true,
+      secure:false,
+      sameSite: "lax", // this should be true in production
+      maxAge: 1000 * 60 * 15
     });
 
   } catch (error) {
