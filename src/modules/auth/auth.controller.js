@@ -116,11 +116,20 @@ export const login = async (req, res) => {
       {expiresIn: "15m"}
     );
 
-    return res.cookie("token", token, {
+    return res
+    .cookie("token", token, {
       httpOnly: true,
-      secure:false,
-      sameSite: "lax", // this should be true in production
+      secure: false,
+      sameSite: "lax", // This should be true in production
       maxAge: 1000 * 60 * 15
+    })
+    .status(200)
+    .json({
+      message: "Login exitoso",
+      user: {
+        id: user.id,
+        email: user.email
+      }
     });
 
   } catch (error) {
