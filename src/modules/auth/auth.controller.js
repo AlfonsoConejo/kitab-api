@@ -139,3 +139,18 @@ export const login = async (req, res) => {
     });
   }
 };
+
+export const me = async (req, res) => {
+  try {
+    const token = req.cookies.token;
+
+    if (!token) return res.status(401).json({message: "Token obligatorio"})
+
+    const data = jwt.verify(token, process.env.JWT_SECRET);
+    return res.status(200).json({user: data});
+  } catch (error) {
+    res.status(401).json({
+      message: "Invalid or expired token"
+    });
+  }
+};
