@@ -2,6 +2,9 @@ import { pool } from "../../config/db.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken"
 
+// Definition of JWT cookie security
+const isProduction = process.env.NODE_ENV === "production";
+
 export const register = async (req, res) => {
   try {
     let { firstName, lastName, email, password } = req.body;
@@ -76,12 +79,6 @@ export const login = async (req, res) => {
       });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({
-        message: "La contraseña debe contener al menos 6 caracteres."
-      });
-    }
-
     //Verify if user exists on database
     const result = await pool.query(
       `SELECT id, email, password_hash
@@ -119,8 +116,8 @@ export const login = async (req, res) => {
     return res
     .cookie("token", token, {
       httpOnly: true,
-      secure: false,
-      sameSite: "lax",
+      sameSite: isProduction ? "none" : "lax",
+      secure: isProduction,
       maxAge: 1000 * 60 * 15
     })
     .status(200)
