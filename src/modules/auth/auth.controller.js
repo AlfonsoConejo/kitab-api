@@ -105,20 +105,34 @@ export const login = async (req, res) => {
       });
     }
 
-    // Create JWT
     const payload = {id: user.id, email: user.email}
-    const token = jwt.sign(
+
+    // Create JWT access token
+    const accessToken = jwt.sign(
       payload,
-      process.env.JWT_SECRET,
+      process.env.JWT_ACCESS_SECRET,
       {expiresIn: "15m"}
     );
 
+    // Create JWT refresh token
+    const refreshToken = jwt.sign(
+      payload,
+      process.env.JWT_REFRESH_SECRET,
+      {expiresIn: "7d"}
+    );
+
     return res
-    .cookie("token", token, {
+    .cookie("accessToken", accessToken, {
       httpOnly: true,
       sameSite: isProduction ? "none" : "lax",
       secure: isProduction,
-      maxAge: 1000 * 60 * 15
+      maxAge: 1000 * 60 * 15 // 15 minutes
+    })
+    .cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      sameSite: isProduction ? "none" : "lax",
+      secure: isProduction,
+      maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
     })
     .status(200)
     .json({
@@ -139,15 +153,54 @@ export const login = async (req, res) => {
 
 export const me = async (req, res) => {
   try {
-    const token = req.cookies.token;
+    const accessToken = req.cookies.accessToken;
 
-    if (!token) return res.status(401).json({message: "Token obligatorio"})
+    if (!accessToken) return res.status(401).json({message: "Token obligatorio"})
 
-    const data = jwt.verify(token, process.env.JWT_SECRET);
-    return res.status(200).json({user: data});
+    const data = jwt.verify(accessToken, process.env.JWT_ACCESS_SECRET);
+    return res.status(200).json({
+      user: {
+        id: data.id,
+        email: data.email
+      }
+    });
   } catch (error) {
     res.status(401).json({
-      message: "Invalid or expired token"
+      message: "Invalid or expired access token"
     });
   }
 };
+
+export const refresh = async(req, res) => {
+  const refreshToken = req.cookies.refreshToken;
+
+  if (!refreshToken) {
+    return res.status(401).json({ message: "No refresh token" });
+  }
+
+  try {
+    const data = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    
+    const payload = { id: data.id, email: data.email };
+    // Note: Once I finish implementing JWT i'll start with refreshToken rotation with DB
+
+    // Create JWT access token
+    const newAccessToken = jwt.sign(
+      payload,
+      process.env.JWT_ACCESS_SECRET,
+      {expiresIn: "15m"}
+    );
+
+    // Send cookie
+    res.cookie("accessToken", newAccessToken, {
+      httpOnly: true,
+      sameSite: isProduction ? "none" : "lax",
+      secure: isProduction,
+      maxAge: 1000 * 60 * 15
+    });
+
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(403).json({ message: "Invalid refresh token" });
+  }
+}
