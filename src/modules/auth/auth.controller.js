@@ -191,16 +191,33 @@ export const refresh = async(req, res) => {
       {expiresIn: "15m"}
     );
 
-    // Send cookie
-    res.cookie("accessToken", newAccessToken, {
+    return res
+    .cookie("accessToken", newAccessToken, {
       httpOnly: true,
       sameSite: isProduction ? "none" : "lax",
       secure: isProduction,
       maxAge: 1000 * 60 * 15
-    });
-
-    return res.json({ ok: true });
+    })
+    .json({ ok: true });
   } catch (error) {
     return res.status(403).json({ message: "Invalid refresh token" });
   }
 }
+
+export const logout = async(req, res)  => {
+  res.clearCookie("accessToken", {
+    httpOnly: true,
+    sameSite: isProduction ? "none" : "lax",
+    secure: isProduction,
+    path: "/"
+  });
+
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    sameSite: isProduction ? "none" : "lax",
+    secure: isProduction,
+    path: "/"
+  });
+
+  return res.json({ok: true});
+};
