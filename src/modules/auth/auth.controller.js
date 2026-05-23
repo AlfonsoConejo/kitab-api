@@ -105,7 +105,10 @@ export const login = async (req, res) => {
       });
     }
 
-    const payload = {id: user.id, email: user.email}
+    const payload = {
+      id: user.id,
+      email: user.email
+    }
 
     // Create JWT access token
     const accessToken = jwt.sign(
@@ -119,6 +122,32 @@ export const login = async (req, res) => {
       payload,
       process.env.JWT_REFRESH_SECRET,
       {expiresIn: "7d"}
+    );
+
+    // Hash refresh token
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+
+    // Decode refresh token
+    const decodedRefreshToken = jwt.decode(refreshToken);
+    if(!decodedRefreshToken?.exp){
+      throw new Error("Invalid refresh token");
+    }
+
+    const userAgent = req.get("User-Agent");
+    const ipAddress = req.ip;
+
+    //Save refresh token to DB
+    await pool.query(
+      `INSERT INTO sessions (user_id, refresh_token, expires_at, user_agent, ip_address)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, user_id,refresh_token, expires_at`,
+      [
+        user.id,
+        hashedRefreshToken,
+        new Date(decodedRefreshToken.exp * 1000),
+        userAgent,
+        ipAddress
+      ]
     );
 
     return res
@@ -158,12 +187,14 @@ export const me = async (req, res) => {
     if (!accessToken) return res.status(401).json({message: "Token obligatorio"})
 
     const data = jwt.verify(accessToken, process.env.JWT_ACCESS_SECRET);
+
     return res.status(200).json({
       user: {
         id: data.id,
         email: data.email
       }
     });
+
   } catch (error) {
     res.status(401).json({
       message: "Invalid or expired access token"
@@ -172,17 +203,92 @@ export const me = async (req, res) => {
 };
 
 export const refresh = async(req, res) => {
-  const refreshToken = req.cookies.refreshToken;
+  try{
+    const refreshToken = req.cookies.refreshToken;
 
-  if (!refreshToken) {
-    return res.status(401).json({ message: "No refresh token" });
-  }
+    if (!refreshToken) {
+      return res.status(401).json({ message: "Refresh token no encontrado" });
+    }
 
-  try {
-    const data = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-    
-    const payload = { id: data.id, email: data.email };
-    // Note: Once I finish implementing JWT i'll start with refreshToken rotation with DB
+    // Verify user id
+    const refreshTokenData = jwt.verify(
+      refreshToken,
+      process.env.JWT_REFRESH_SECRET
+    );
+
+    // Search user sessions in DB
+    const sessions = await pool.query(
+      `SELECT *
+      FROM sessions
+      WHERE user_id = $1
+      AND is_revoked = false`,
+      [refreshTokenData.id]
+    );
+
+    const matchedSession = sessions.rows.find(session =>
+      bcrypt.compareSync(refreshToken, session.refresh_token)
+    );
+
+    if (!matchedSession) {
+      return res.status(403).json({
+        message: "Refresh token inválido"
+      });
+    }
+
+    if (matchedSession.expires_at < new Date()) {
+      return res.status(401).json({
+        message: "Refresh token inválido"
+      });
+    }
+
+    //Invalidate previous refresh token
+    const invalidateToken = await pool.query(
+      `UPDATE sessions
+      SET is_revoked = true
+      WHERE id = $1
+      AND is_revoked = false
+      RETURNING *`,
+      [matchedSession.id]
+    );
+
+    if (invalidateToken.rowCount === 0) {
+      return res.status(403).json({
+        message: "Refresh token already revoked"
+      });
+    }
+
+    const payload = {
+      id: refreshTokenData.id,
+      email: refreshTokenData.email
+    }
+
+    // Create new JWT refresh token
+    const newRefreshToken = jwt.sign(
+      payload,
+      process.env.JWT_REFRESH_SECRET,
+      {expiresIn: "7d"}
+    );
+
+    // Decode refresh token
+    const decodedNewRefreshToken = jwt.decode(newRefreshToken);
+
+    if (!decodedNewRefreshToken?.exp) {
+      throw new Error("Invalid refresh token");
+    }
+
+    //Hash refresh token
+    const hashedNewRefreshToken = await bcrypt.hash(newRefreshToken, 10);
+
+    const userAgent = req.get("User-Agent");
+    const ipAddress = req.ip;
+
+    // Store new refreshToken to DB
+    await pool.query(
+      `INSERT INTO sessions (user_id, refresh_token, expires_at, user_agent, ip_address)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, user_id,refresh_token, expires_at`,
+      [refreshTokenData.id, hashedNewRefreshToken , new Date(decodedNewRefreshToken.exp * 1000), userAgent, ipAddress]
+    );
 
     // Create JWT access token
     const newAccessToken = jwt.sign(
@@ -196,28 +302,83 @@ export const refresh = async(req, res) => {
       httpOnly: true,
       sameSite: isProduction ? "none" : "lax",
       secure: isProduction,
-      maxAge: 1000 * 60 * 15
+      maxAge: 1000 * 60 * 15 // 15 minutes
+    })
+    .cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      sameSite: isProduction ? "none" : "lax",
+      secure: isProduction,
+      maxAge: 1000 * 60 * 60 * 24 * 7
     })
     .json({ ok: true });
   } catch (error) {
-    return res.status(403).json({ message: "Invalid refresh token" });
+    return res.status(403).json({ message: "Refresh token inválido" });
   }
 }
 
-export const logout = async(req, res)  => {
-  res.clearCookie("accessToken", {
-    httpOnly: true,
-    sameSite: isProduction ? "none" : "lax",
-    secure: isProduction,
-    path: "/"
-  });
+export const logout = async (req, res) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
 
-  res.clearCookie("refreshToken", {
-    httpOnly: true,
-    sameSite: isProduction ? "none" : "lax",
-    secure: isProduction,
-    path: "/"
-  });
+    if (!refreshToken) {
+      return res.status(401).json({
+        message: "No refresh token"
+      });
+    }
 
-  return res.json({ok: true});
+    // Clear cookies
+    res.clearCookie("accessToken", {
+      httpOnly: true,
+      sameSite: isProduction ? "none" : "lax",
+      secure: isProduction,
+      path: "/"
+    });
+
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      sameSite: isProduction ? "none" : "lax",
+      secure: isProduction,
+      path: "/"
+    });
+
+    // Verify refresh token
+    const refreshTokenData = jwt.verify(
+      refreshToken,
+      process.env.JWT_REFRESH_SECRET
+    );
+
+    // Search user sessions in DB
+    const sessions = await pool.query(
+      `SELECT *
+      FROM sessions
+      WHERE user_id = $1
+      AND is_revoked = false`,
+      [refreshTokenData.id]
+    );
+
+    const matchedSession = sessions.rows.find(session =>
+      bcrypt.compareSync(refreshToken, session.refresh_token)
+    );
+
+    if (!matchedSession) {
+      return res.status(403).json({
+        message: "Refresh token inválido"
+      });
+    }
+
+    // Revoke refresh token
+    await pool.query(
+      `UPDATE sessions
+       SET is_revoked = true
+       WHERE id = $1
+       AND is_revoked = false`,
+      [matchedSession.id]
+    );
+
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(401).json({
+      message: "Invalid refresh token"
+    });
+  }
 };

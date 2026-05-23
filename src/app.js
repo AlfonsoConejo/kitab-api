@@ -6,6 +6,8 @@ import cookieParser from "cookie-parser";
 
 const app = express();
 
+app.set("trust proxy", true);
+
 app.use(cors({
   origin: process.env.FRONTEND_URL,
   credentials: true
