@@ -1,6 +1,7 @@
 import { pool } from "../../config/db.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken"
+import crypto from "crypto";
 
 // Definition of JWT cookie security
 const isProduction = process.env.NODE_ENV === "production";
@@ -67,6 +68,9 @@ export const register = async (req, res) => {
 };
 
 export const login = async (req, res) => {
+
+  const client = await pool.connect();
+
   try {
     let { email, password } = req.body;
 
@@ -80,7 +84,7 @@ export const login = async (req, res) => {
     }
 
     //Verify if user exists on database
-    const result = await pool.query(
+    const result = await client.query(
       `SELECT id, email, password_hash
        FROM users
        WHERE email = $1`,
@@ -124,31 +128,67 @@ export const login = async (req, res) => {
       {expiresIn: "7d"}
     );
 
-    // Hash refresh token
-    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-
     // Decode refresh token
-    const decodedRefreshToken = jwt.decode(refreshToken);
-    if(!decodedRefreshToken?.exp){
+    const decodedToken = jwt.decode(refreshToken);
+    if(!decodedToken?.exp){
       throw new Error("Invalid refresh token");
     }
 
-    const userAgent = req.get("User-Agent");
-    const ipAddress = req.ip;
+    // Hash refresh token
+    const hashedRefreshToken = hashToken(refreshToken);
 
-    //Save refresh token to DB
-    await pool.query(
-      `INSERT INTO sessions (user_id, refresh_token, expires_at, user_agent, ip_address)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, user_id,refresh_token, expires_at`,
+    const userAgent = req.get("User-Agent");
+    const ipAddress = getClientIp(req);
+
+    // Get user location from IP
+    const location = await getLocationFromIp(ipAddress);
+
+    await client.query("BEGIN");
+
+    //Save Session to DB
+    const sessionResult = await client.query(
+    `
+      INSERT INTO sessions (
+        user_id,
+        user_agent,
+        ip_address,
+        city,
+        state,
+        country
+      )
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id
+    `,
       [
         user.id,
-        hashedRefreshToken,
-        new Date(decodedRefreshToken.exp * 1000),
         userAgent,
-        ipAddress
+        ipAddress,
+        location.city,
+        location.state,
+        location.country
       ]
     );
+
+    const sessionId = sessionResult.rows[0].id;
+
+    // Save Refresh Token to DB
+    await client.query(
+    `
+      INSERT INTO refresh_tokens (
+        session_id,
+        token_hash,
+        expires_at
+      )
+      VALUES ($1, $2, $3)
+    `,
+      [
+        sessionId,
+        hashedRefreshToken,
+        new Date(decodedToken.exp * 1000)
+      ]
+    );  
+
+    await client.query("COMMIT");
 
     return res
     .cookie("accessToken", accessToken, {
@@ -173,10 +213,16 @@ export const login = async (req, res) => {
     });
 
   } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {}
+
     res.status(500).json({
       message: "Server error",
-      error: error.message
+      ...(!isProduction && {error: error.message})
     });
+  } finally {
+    client.release();
   }
 };
 
@@ -188,11 +234,32 @@ export const me = async (req, res) => {
 
     const data = jwt.verify(accessToken, process.env.JWT_ACCESS_SECRET);
 
+    // Look for user in DB
+    const result = await pool.query(
+      `SELECT
+        id,
+        first_name,
+        last_name,
+        email,
+        created_at,
+        updated_at
+      FROM users
+      WHERE id = $1`,
+      [data.id]
+    );
+
+    // Verify existance
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: "Usuario no encontrado"
+      });
+    }
+
+    // Get user
+    const user = result.rows[0];
+
     return res.status(200).json({
-      user: {
-        id: data.id,
-        email: data.email
-      }
+      user
     });
 
   } catch (error) {
@@ -203,6 +270,9 @@ export const me = async (req, res) => {
 };
 
 export const refresh = async(req, res) => {
+
+  const client = await pool.connect();
+
   try{
     const refreshToken = req.cookies.refreshToken;
 
@@ -210,48 +280,59 @@ export const refresh = async(req, res) => {
       return res.status(401).json({ message: "Refresh token no encontrado" });
     }
 
-    // Verify user id
+    // Hash refresh token
+    const hashedRefreshToken = hashToken(refreshToken);
+
+    // Verify JWT
     const refreshTokenData = jwt.verify(
       refreshToken,
       process.env.JWT_REFRESH_SECRET
     );
 
-    // Search user sessions in DB
-    const sessions = await pool.query(
-      `SELECT *
-      FROM sessions
-      WHERE user_id = $1
-      AND is_revoked = false`,
-      [refreshTokenData.id]
+    await client.query("BEGIN");
+
+    // Search for Refresh Tokens in DB
+    const refreshTokensResult = await client.query(
+      `SELECT
+        rt.*,
+        s.is_active,
+        s.id AS session_id
+      FROM refresh_tokens rt
+      JOIN sessions s ON s.id = rt.session_id
+      WHERE rt.token_hash = $1 
+        AND s.is_active = true 
+        AND rt.is_revoked = false`,
+      [hashedRefreshToken]
     );
 
-    const matchedSession = sessions.rows.find(session =>
-      bcrypt.compareSync(refreshToken, session.refresh_token)
-    );
-
-    if (!matchedSession) {
-      return res.status(403).json({
-        message: "Refresh token inválido"
-      });
+    if (refreshTokensResult.rows.length === 0){
+      await client.query("ROLLBACK");
+      return res.status(401).json({message: "Refresh token inválido."})
     }
 
-    if (matchedSession.expires_at < new Date()) {
+    const currentRefreshToken = refreshTokensResult.rows[0];
+
+    // It token has already expired
+    if (currentRefreshToken.expires_at < new Date()) {
+      await client.query("ROLLBACK");
       return res.status(401).json({
         message: "Refresh token inválido"
       });
     }
 
-    //Invalidate previous refresh token
-    const invalidateToken = await pool.query(
-      `UPDATE sessions
-      SET is_revoked = true
-      WHERE id = $1
+    // Invalidate previous refresh token
+    const invalidateToken = await client.query(
+      `UPDATE refresh_tokens
+      SET is_revoked = true,
+          revoked_at = CURRENT_TIMESTAMP
+      WHERE token_hash = $1
       AND is_revoked = false
       RETURNING *`,
-      [matchedSession.id]
+      [hashedRefreshToken]
     );
 
     if (invalidateToken.rowCount === 0) {
+      await client.query("ROLLBACK");
       return res.status(403).json({
         message: "Refresh token already revoked"
       });
@@ -269,26 +350,31 @@ export const refresh = async(req, res) => {
       {expiresIn: "7d"}
     );
 
-    // Decode refresh token
-    const decodedNewRefreshToken = jwt.decode(newRefreshToken);
+    const refreshExpiresAt = new Date(
+      Date.now() + 1000 * 60 * 60 * 24 * 7
+    );
 
-    if (!decodedNewRefreshToken?.exp) {
-      throw new Error("Invalid refresh token");
-    }
-
-    //Hash refresh token
-    const hashedNewRefreshToken = await bcrypt.hash(newRefreshToken, 10);
-
-    const userAgent = req.get("User-Agent");
-    const ipAddress = req.ip;
+    // Hash refresh token
+    const hashedNewRefreshToken = hashToken(newRefreshToken);
 
     // Store new refreshToken to DB
-    await pool.query(
-      `INSERT INTO sessions (user_id, refresh_token, expires_at, user_agent, ip_address)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, user_id,refresh_token, expires_at`,
-      [refreshTokenData.id, hashedNewRefreshToken , new Date(decodedNewRefreshToken.exp * 1000), userAgent, ipAddress]
+    await client.query(
+      `INSERT INTO refresh_tokens (session_id, token_hash, expires_at)
+       VALUES ($1, $2, $3)
+      `,
+      [currentRefreshToken.session_id, hashedNewRefreshToken , refreshExpiresAt]
     );
+
+    // Update session last_seen_at field
+    await client.query(
+      `UPDATE sessions
+       SET last_seen_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+      `,
+      [currentRefreshToken.session_id]
+    );
+
+    await client.query("COMMIT");
 
     // Create JWT access token
     const newAccessToken = jwt.sign(
@@ -312,73 +398,119 @@ export const refresh = async(req, res) => {
     })
     .json({ ok: true });
   } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {}
+
     return res.status(403).json({ message: "Refresh token inválido" });
+  } finally {
+    client.release();
   }
 }
 
 export const logout = async (req, res) => {
+  const client = await pool.connect();
+
   try {
     const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken) {
-      return res.status(401).json({
-        message: "No refresh token"
-      });
+      return res.status(200).json({ ok: true });
     }
 
-    // Clear cookies
-    res.clearCookie("accessToken", {
-      httpOnly: true,
-      sameSite: isProduction ? "none" : "lax",
-      secure: isProduction,
-      path: "/"
-    });
+    const hashedRefreshToken = hashToken(refreshToken);
 
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      sameSite: isProduction ? "none" : "lax",
-      secure: isProduction,
-      path: "/"
-    });
-
-    // Verify refresh token
-    const refreshTokenData = jwt.verify(
-      refreshToken,
-      process.env.JWT_REFRESH_SECRET
+    const refreshTokenInfoResult = await client.query(
+      `SELECT session_id
+       FROM refresh_tokens
+       WHERE token_hash = $1`,
+      [hashedRefreshToken]
     );
 
-    // Search user sessions in DB
-    const sessions = await pool.query(
-      `SELECT *
-      FROM sessions
-      WHERE user_id = $1
-      AND is_revoked = false`,
-      [refreshTokenData.id]
-    );
-
-    const matchedSession = sessions.rows.find(session =>
-      bcrypt.compareSync(refreshToken, session.refresh_token)
-    );
-
-    if (!matchedSession) {
-      return res.status(403).json({
-        message: "Refresh token inválido"
-      });
+    if (refreshTokenInfoResult.rows.length === 0) {
+      res.clearCookie("accessToken", cookieOptions);
+      res.clearCookie("refreshToken", cookieOptions);
+      return res.json({ ok: true });
     }
 
-    // Revoke refresh token
-    await pool.query(
+    const { session_id } = refreshTokenInfoResult.rows[0];
+
+    await client.query("BEGIN");
+
+    await client.query(
       `UPDATE sessions
-       SET is_revoked = true
-       WHERE id = $1
-       AND is_revoked = false`,
-      [matchedSession.id]
+       SET is_active = false
+       WHERE id = $1`,
+      [session_id]
     );
+
+    await client.query(
+      `UPDATE refresh_tokens
+       SET is_revoked = true,
+           revoked_at = CURRENT_TIMESTAMP
+       WHERE session_id = $1`,
+      [session_id]
+    );
+
+    await client.query("COMMIT");
+
+    res.clearCookie("accessToken", cookieOptions);
+    res.clearCookie("refreshToken", cookieOptions);
 
     return res.json({ ok: true });
+
   } catch (error) {
-    return res.status(401).json({
-      message: "Invalid refresh token"
-    });
+    try {
+      await client.query("ROLLBACK");
+    } catch {}
+
+    return res.status(500).json({ message: "Logout error" });
+  } finally {
+    client.release();
+  }
+};
+
+const cookieOptions = {
+  httpOnly: true,
+  sameSite: isProduction ? "none" : "lax",
+  secure: isProduction,
+  path: "/"
+};
+
+const hashToken = (token) => {
+  return crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex");
+};
+
+const getClientIp = (req) => {
+  return req.ip.replace("::ffff:", "");
+};
+
+const getLocationFromIp = async (ipAddress) => {
+  try {
+    const response = await fetch(
+      `https://ipapi.co/${ipAddress}/json/`
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch location");
+    }
+
+    const data = await response.json();
+
+    return {
+      city: data.city || null,
+      state: data.region || null,
+      country: data.country_name || null,
+    };
+
+  } catch (error) {
+    return {
+      city: null,
+      state: null,
+      country: null,
+    };
   }
 };
