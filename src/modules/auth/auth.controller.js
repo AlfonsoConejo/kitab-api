@@ -489,6 +489,7 @@ const getClientIp = (req) => {
 };
 
 const getLocationFromIp = async (ipAddress) => {
+  console.log("Esta es la dirección IP del usuario: " + ipAddress);
   try {
     const response = await fetch(
       `https://ipapi.co/${ipAddress}/json/`
