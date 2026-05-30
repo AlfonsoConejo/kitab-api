@@ -489,17 +489,16 @@ const getClientIp = (req) => {
 };
 
 const getLocationFromIp = async (ipAddress) => {
-  console.log("Esta es la dirección IP del usuario: " + ipAddress);
   try {
     const response = await fetch(
       `https://ipapi.co/${ipAddress}/json/`
     );
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch location");
-    }
+    console.log("Status:", response.status);
 
     const data = await response.json();
+
+    console.log("IPAPI response:", data);
 
     return {
       city: data.city || null,
@@ -508,6 +507,8 @@ const getLocationFromIp = async (ipAddress) => {
     };
 
   } catch (error) {
+    console.error("IPAPI error:", error);
+
     return {
       city: null,
       state: null,
