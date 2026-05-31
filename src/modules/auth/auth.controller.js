@@ -498,6 +498,10 @@ const getLocationFromIp = async (ipAddress) => {
 
     const data = await response.json();
 
+    if (data.error) {
+      throw new Error(data.reason);
+    }
+
     console.log("IPAPI response:", data);
 
     return {
