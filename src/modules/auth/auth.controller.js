@@ -241,6 +241,7 @@ export const me = async (req, res) => {
         first_name,
         last_name,
         email,
+        active_period_id,
         created_at,
         updated_at
       FROM users
