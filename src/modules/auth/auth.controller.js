@@ -471,6 +471,29 @@ export const logout = async (req, res) => {
   }
 };
 
+export const modifyActivePeriod = async (req, res) => {
+  
+  const {active_period_id} = req.body
+  const userId = req.user.id;
+
+  if (!active_period_id) {
+    return res.status(404).json({ success: false, message: 'El ID del periodo actual es obligatorio.' });
+  }
+
+  const result = await pool.query(
+      `UPDATE users
+      SET active_period_id = $1
+      WHERE id = $2
+      `,
+      [active_period_id, userId]
+    );
+
+  res.json({
+    success: 'true',
+    message: 'Usuario actualizado parcialmente'
+  });
+};
+
 const cookieOptions = {
   httpOnly: true,
   sameSite: isProduction ? "none" : "lax",

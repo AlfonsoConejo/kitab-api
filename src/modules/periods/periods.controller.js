@@ -80,7 +80,7 @@ export const periods = async (req, res) => {
 
 export const deletePeriod = async (req, res) => {
   try {
-    const id = req.params.id;
+    const { id } = req.params;
 
     const result = await pool.query(
       `DELETE FROM academic_periods
