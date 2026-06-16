@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { newPeriod, periods, deletePeriod, updatePeriod } from "../periods/periods.controller.js";
+import { newPeriod, periods, deletePeriod, updatePeriod, requestedPeriod } from "../periods/periods.controller.js";
 import { authMiddleware } from "../../middleware/authMiddleware.js";
 
 const router = Router();
@@ -10,6 +10,6 @@ router.route("/")
 
 router.route("/:id")
   .delete(authMiddleware, deletePeriod)
-  .put(authMiddleware, updatePeriod);
-
+  .put(authMiddleware, updatePeriod)
+  .get(authMiddleware, requestedPeriod)
 export default router;

@@ -78,6 +78,41 @@ export const periods = async (req, res) => {
   }
 };
 
+export const requestedPeriod = async (req, res) => {
+  try{
+    const userId = req.user.id;
+    const {id} = req.params;
+
+    const result = await pool.query(
+      `SELECT *
+      FROM academic_periods
+      WHERE id = $1 
+      AND user_id = $2
+      `,
+      [id, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Periodo no encontrado."
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: result.rows[0]
+    });
+
+  } catch (error){
+    console.error("Error al obtener el periodo especificado:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error interno del servidor."
+    });
+  }
+}
+
 export const deletePeriod = async (req, res) => {
   try {
     const { id } = req.params;
@@ -143,7 +178,7 @@ export const updatePeriod = async (req, res) => {
     // Execute update
     const result = await pool.query(
       `UPDATE academic_periods
-      SET name = $1, startDate = $2, endDate = $3, color = $4
+      SET name = $1, start_date = $2, end_date = $3, color = $4
       WHERE id = $5`,
       [cleanName, startDate, endDate, color, id]
     );
