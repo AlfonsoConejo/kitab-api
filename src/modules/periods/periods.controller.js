@@ -197,6 +197,13 @@ export const updatePeriod = async (req, res) => {
     });
   } catch (error) {
     console.error("Error al actualizar el periodo:", error);
+
+    if (error.code === "23505") {
+      return res.status(409).json({
+        message: "Ya existe un periodo con ese nombre."
+      });
+    }
+    
     return res.status(500).json({
       success: false,
       message: "Error interno del servidor."

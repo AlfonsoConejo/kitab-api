@@ -237,15 +237,18 @@ export const me = async (req, res) => {
     // Look for user in DB
     const result = await pool.query(
       `SELECT
-        id,
-        first_name,
-        last_name,
-        email,
-        active_period_id,
-        created_at,
-        updated_at
-      FROM users
-      WHERE id = $1`,
+      u.id,
+      u.first_name,
+      u.last_name,
+      u.email,
+      u.active_period_id,
+      a.name AS period_name,
+      u.created_at,
+      u.updated_at
+      FROM users AS u
+      LEFT JOIN academic_periods AS a
+      ON u.active_period_id = a.id
+      WHERE u.id = $1`,
       [data.id]
     );
 
