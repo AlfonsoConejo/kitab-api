@@ -237,18 +237,14 @@ export const me = async (req, res) => {
     // Look for user in DB
     const result = await pool.query(
       `SELECT
-      u.id,
-      u.first_name,
-      u.last_name,
-      u.email,
-      u.active_period_id,
-      a.name AS period_name,
-      u.created_at,
-      u.updated_at
-      FROM users AS u
-      LEFT JOIN academic_periods AS a
-      ON u.active_period_id = a.id
-      WHERE u.id = $1`,
+        id,
+        first_name,
+        last_name,
+        email,
+        created_at,
+        updated_at
+      FROM users
+      WHERE id = $1`,
       [data.id]
     );
 
@@ -472,29 +468,6 @@ export const logout = async (req, res) => {
   } finally {
     client.release();
   }
-};
-
-export const modifyActivePeriod = async (req, res) => {
-  
-  const {active_period_id} = req.body
-  const userId = req.user.id;
-
-  if (!active_period_id) {
-    return res.status(404).json({ success: false, message: 'El ID del periodo actual es obligatorio.' });
-  }
-
-  const result = await pool.query(
-      `UPDATE users
-      SET active_period_id = $1
-      WHERE id = $2
-      `,
-      [active_period_id, userId]
-    );
-
-  res.json({
-    success: 'true',
-    message: 'Usuario actualizado parcialmente'
-  });
 };
 
 const cookieOptions = {
