@@ -89,7 +89,7 @@ export const requestedPeriod = async (req, res) => {
       WHERE id = $1 
       AND user_id = $2
       `,
-      [id, userId]
+      [periodId, userId]
     );
 
     if (result.rows.length === 0) {
@@ -115,12 +115,14 @@ export const requestedPeriod = async (req, res) => {
 
 export const deletePeriod = async (req, res) => {
   try {
+    const userId = req.user.id;
     const { periodId } = req.params;
 
     const result = await pool.query(
       `DELETE FROM academic_periods
-      WHERE id = $1`,
-      [id]
+      WHERE id = $1
+      AND user_id = $2`,
+      [periodId, userId]
     );
 
     // Verify if ID exists
@@ -148,10 +150,19 @@ export const deletePeriod = async (req, res) => {
 
 export const updatePeriod = async (req, res) => {
   try {
-    const id = req.params.periodId;
+    const userId = req.user.id;
+    const periodId = Number(req.params.periodId);
     const { name, startDate, endDate, color } = req.body;
 
     // Validations
+
+    if (!Number.isInteger(periodId) || periodId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "ID de periodo inválido."
+      });
+    }
+
     if (!name?.trim() || !startDate || !endDate || !color) {
       return res.status(400).json({
         success: false,
@@ -178,12 +189,17 @@ export const updatePeriod = async (req, res) => {
     // Execute update
     const result = await pool.query(
       `UPDATE academic_periods
-      SET name = $1, start_date = $2, end_date = $3, color = $4
-      WHERE id = $5`,
-      [cleanName, startDate, endDate, color, id]
+      SET name = $1,
+          start_date = $2,
+          end_date = $3,
+          color = $4
+      WHERE id = $5
+      AND user_id = $6
+      RETURNING *`,
+      [cleanName, startDate, endDate, color, periodId, userId]
     );
 
-    // Verify if ID exists
+    // Verify if the period exists and belongs to the user
     if (result.rowCount === 0) {
       return res.status(404).json({
         success: false,
@@ -193,13 +209,15 @@ export const updatePeriod = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Periodo actualizado correctamente."
+      message: "Periodo actualizado correctamente.",
+      data: result.rows[0]
     });
   } catch (error) {
     console.error("Error al actualizar el periodo:", error);
 
     if (error.code === "23505") {
       return res.status(409).json({
+        success: false,
         message: "Ya existe un periodo con ese nombre."
       });
     }
