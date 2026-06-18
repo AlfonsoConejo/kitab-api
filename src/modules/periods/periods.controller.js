@@ -81,7 +81,7 @@ export const periods = async (req, res) => {
 export const requestedPeriod = async (req, res) => {
   try{
     const userId = req.user.id;
-    const {id} = req.params;
+    const {periodId} = req.params;
 
     const result = await pool.query(
       `SELECT *
@@ -115,7 +115,7 @@ export const requestedPeriod = async (req, res) => {
 
 export const deletePeriod = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { periodId } = req.params;
 
     const result = await pool.query(
       `DELETE FROM academic_periods
@@ -148,7 +148,7 @@ export const deletePeriod = async (req, res) => {
 
 export const updatePeriod = async (req, res) => {
   try {
-    const id = req.params.id;
+    const id = req.params.periodId;
     const { name, startDate, endDate, color } = req.body;
 
     // Validations
@@ -204,6 +204,64 @@ export const updatePeriod = async (req, res) => {
       });
     }
     
+    return res.status(500).json({
+      success: false,
+      message: "Error interno del servidor."
+    });
+  }
+};
+
+export const getSubjects = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const periodId = Number(req.params.periodId);
+
+    // Validate received periodId
+    if (!Number.isInteger(periodId) || periodId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "ID de periodo inválido."
+      });
+    }
+
+    // Verify that the period exists and belongs to the user
+    const period = await pool.query(
+      `SELECT id
+        FROM academic_periods
+        WHERE id = $1
+        AND user_id = $2`,
+        [periodId, userId]
+      );
+
+    if (period.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Periodo no encontrado."
+      });
+    }
+
+    // Get information of the subjects in the period
+    const result = await pool.query(
+      `SELECT
+        id,
+        name,
+        teacher,
+        color,
+        created_at,
+        updated_at
+      FROM subjects
+      WHERE period_id = $1
+      ORDER BY name;`,
+      [periodId]
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error("Error al obtener las materias:", error);
+
     return res.status(500).json({
       success: false,
       message: "Error interno del servidor."
