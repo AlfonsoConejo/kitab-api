@@ -190,6 +190,13 @@ export const login = async (req, res) => {
 
     await client.query("COMMIT");
 
+    console.log("SET COOKIE CONFIG:");
+    console.log({
+      httpOnly: true,
+      sameSite: isProduction ? "none" : "lax",
+      secure: isProduction
+    });
+
     return res
     .cookie("accessToken", accessToken, {
       httpOnly: true,
@@ -228,6 +235,10 @@ export const login = async (req, res) => {
 
 export const me = async (req, res) => {
   try {
+    // Log incoming cookies and parsed cookies for debugging
+    console.log("incoming cookies:", req.headers.cookie);
+    console.log("parsed cookies:", req.cookies);
+
     const accessToken = req.cookies.accessToken;
 
     if (!accessToken) return res.status(401).json({message: "Token obligatorio"})

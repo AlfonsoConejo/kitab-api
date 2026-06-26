@@ -35,7 +35,8 @@ export const newPeriod = async (req, res) => {
     );
 
     return res.status(201).json({
-      message: "Periodo creado exitosamente",
+      success: true,
+      message: "Periodo creado correctamente.",
       period: result.rows[0]
     });
   } catch (error) {
@@ -210,7 +211,7 @@ export const updatePeriod = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Periodo actualizado correctamente.",
-      data: result.rows[0]
+      period: result.rows[0],
     });
   } catch (error) {
     console.error("Error al actualizar el periodo:", error);
