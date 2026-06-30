@@ -282,37 +282,40 @@ export const me = async (req, res) => {
 
 export const refresh = async(req, res) => {
 
-  const client = await pool.connect();
+  const refreshToken = req.cookies.refreshToken;
+
+  if (!refreshToken) {
+    return res.status(401).json({ message: "No autorizado" });
+  }
+
+  // Hash refresh token
+  const hashedRefreshToken = hashToken(refreshToken);
+
+  let client;
 
   try{
-    const refreshToken = req.cookies.refreshToken;
-
-    if (!refreshToken) {
-      return res.status(401).json({ message: "Refresh token no encontrado" });
-    }
-
-    // Hash refresh token
-    const hashedRefreshToken = hashToken(refreshToken);
-
     // Verify JWT
     const refreshTokenData = jwt.verify(
       refreshToken,
       process.env.JWT_REFRESH_SECRET
     );
 
+    client = await pool.connect();
+    
     await client.query("BEGIN");
 
     // Search for Refresh Tokens in DB
     const refreshTokensResult = await client.query(
       `SELECT
         rt.*,
+        s.user_id,
         s.is_active,
         s.id AS session_id
       FROM refresh_tokens rt
-      JOIN sessions s ON s.id = rt.session_id
-      WHERE rt.token_hash = $1 
-        AND s.is_active = true 
-        AND rt.is_revoked = false`,
+      JOIN sessions s
+        ON s.id = rt.session_id
+      WHERE rt.token_hash = $1
+      FOR UPDATE;`,
       [hashedRefreshToken]
     );
 
@@ -322,6 +325,62 @@ export const refresh = async(req, res) => {
     }
 
     const currentRefreshToken = refreshTokensResult.rows[0];
+
+    if (currentRefreshToken.is_used) {
+
+      const userId = currentRefreshToken.user_id;
+      console.warn(`[ALERTA DE SEGURIDAD] ¡Intento de reutilización de refresh token para el usuario ${userId}!`);
+
+      // Inactivate all sessions for that user
+      await client.query(
+        `UPDATE sessions 
+        SET is_active = false 
+        WHERE user_id = $1`,
+        [userId]
+      );
+
+      // Revoke all refresh tokens for that user
+      await client.query(
+        `UPDATE refresh_tokens
+        SET
+            is_revoked = true,
+            is_used = true,
+            revoked_at = CURRENT_TIMESTAMP
+        WHERE session_id IN (
+            SELECT id
+            FROM sessions
+            WHERE user_id = $1
+        );`,
+        [userId]
+      );
+
+      await client.query("COMMIT");
+
+      return res.status(401).json({message: "Token inválido o reutilizado. Inicie sesión de nuevo."})
+    }
+
+    if (currentRefreshToken.is_revoked) {
+      // Token revocado (logout, cambio de contraseña, etc.)
+      await client.query("ROLLBACK");
+      return res.status(401).json({
+          message: "Refresh token inválido"
+      });
+    }
+
+    if (!currentRefreshToken.is_active) {
+      await client.query("ROLLBACK");
+      return res.status(401).json({
+        message: "Sesión inválida."
+      });
+    }
+
+    if (refreshTokenData.id !== currentRefreshToken.user_id) {
+      await client.query("ROLLBACK");
+
+      return res.status(401).json({
+        message: "Refresh token inválido"
+      });
+    }
 
     // It token has already expired
     if (currentRefreshToken.expires_at < new Date()) {
@@ -334,18 +393,21 @@ export const refresh = async(req, res) => {
     // Invalidate previous refresh token
     const invalidateToken = await client.query(
       `UPDATE refresh_tokens
-      SET is_revoked = true,
+      SET
+          is_revoked = true,
+          is_used = true,
           revoked_at = CURRENT_TIMESTAMP
       WHERE token_hash = $1
-      AND is_revoked = false
-      RETURNING *`,
+        AND is_used = false
+        AND is_revoked = false
+      RETURNING *;`,
       [hashedRefreshToken]
     );
 
     if (invalidateToken.rowCount === 0) {
       await client.query("ROLLBACK");
       return res.status(403).json({
-        message: "Refresh token already revoked"
+        message: "Refresh token inválido"
       });
     }
 
@@ -409,21 +471,27 @@ export const refresh = async(req, res) => {
     })
     .json({ ok: true });
   } catch (error) {
-    try {
-      await client.query("ROLLBACK");
-    } catch {}
+    if (client) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {}
+    }
 
-    return res.status(403).json({ message: "Refresh token inválido" });
+    return res.status(403).json({
+      message: "Refresh token inválido"
+    });
   } finally {
-    client.release();
+    if (client) {
+      client.release();
+    }
   }
 }
 
 export const logout = async (req, res) => {
+  const refreshToken = req.cookies.refreshToken;
   const client = await pool.connect();
 
   try {
-    const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken) {
       return res.status(200).json({ ok: true });
@@ -478,6 +546,85 @@ export const logout = async (req, res) => {
     return res.status(500).json({ message: "Logout error" });
   } finally {
     client.release();
+  }
+};
+
+export const logoutAll = async (req, res) => {
+  
+  const refreshToken = req.cookies.refreshToken;
+
+  if (!refreshToken) {
+    return res.status(200).json({ ok: true });
+  }
+
+  const hashedRefreshToken = hashToken(refreshToken);
+
+  let client;
+  try {
+    client = await pool.connect();
+
+    await client.query("BEGIN");
+    
+    // Get user_id from refresh token
+    const tokenResult = await client.query(
+      `SELECT s.user_id
+      FROM refresh_tokens rt
+      JOIN sessions s ON s.id = rt.session_id
+      WHERE rt.token_hash = $1
+        AND rt.is_revoked = false`,
+      [hashedRefreshToken]
+    );
+
+    // If token is not found, clear cookies and return success
+    if (tokenResult.rows.length === 0) {
+      await client.query("COMMIT"); // Cerramos transacción limpia
+      res.clearCookie("accessToken", cookieOptions);
+      res.clearCookie("refreshToken", cookieOptions);
+      return res.json({ ok: true });
+    }
+
+    const userId = tokenResult.rows[0].user_id;
+
+    // Inactivate all sessions for that user
+    await client.query(
+      `UPDATE sessions 
+      SET is_active = false
+      WHERE user_id = $1`,
+      [userId]
+    );
+
+    // Revoke all refresh tokens for that user
+    await client.query(
+      `UPDATE refresh_tokens
+      SET
+          is_revoked = true,
+          is_used = true,
+          revoked_at = CURRENT_TIMESTAMP
+      WHERE session_id IN (
+          SELECT id
+          FROM sessions
+          WHERE user_id = $1
+      );`,
+      [userId]
+    );
+
+    await client.query("COMMIT");
+
+    // Clear cookies on the client side
+    res.clearCookie("accessToken", cookieOptions);
+    res.clearCookie("refreshToken", cookieOptions);
+    return res.json({ ok: true });
+
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {}
+    console.error("Error en logoutAll:", error);
+    return res.status(500).json({ message: "Error al cerrar todas las sesiones" });
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 };
 
