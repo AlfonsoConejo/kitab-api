@@ -1,4 +1,4 @@
-import pool from "../config/db.js";
+import { pool } from "../config/db.js";
 export const assertPeriodOwnership = async (periodId, userId) => {
   const result = await pool.query(
     `SELECT id
