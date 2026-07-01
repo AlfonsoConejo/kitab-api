@@ -1,6 +1,7 @@
 import { pool } from "../../config/db.js"
+import { assertPeriodOwnership } from "../../services/periodService.js";
 
-export const newPeriod = async (req, res) => {
+export const createPeriod = async (req, res) => {
   try {
     const { name, startDate, endDate, color } = req.body;
     const userId = req.user.id;
@@ -54,7 +55,7 @@ export const newPeriod = async (req, res) => {
   }
 };
 
-export const periods = async (req, res) => {
+export const getPeriods = async (req, res) => {
   try{
     const userId = req.user.id;
 
@@ -79,7 +80,7 @@ export const periods = async (req, res) => {
   }
 };
 
-export const requestedPeriod = async (req, res) => {
+export const getPeriod = async (req, res) => {
   try{
     const userId = req.user.id;
     const {periodId} = req.params;
@@ -230,7 +231,7 @@ export const updatePeriod = async (req, res) => {
   }
 };
 
-export const getSubjects = async (req, res) => {
+export const getPeriodSubjects = async (req, res) => {
   try {
     const userId = req.user.id;
     const periodId = Number(req.params.periodId);
@@ -287,3 +288,81 @@ export const getSubjects = async (req, res) => {
     });
   }
 };
+
+export const createSubject = async (req, res) => {
+  const { periodId } = req.params;
+  const { name, teacher, color } = req.body;
+  const userId = req.user.id;
+
+  const parsedPeriodId = Number(periodId);
+
+  // Validations
+  if (!Number.isInteger(parsedPeriodId) || parsedPeriodId <= 0) {
+    return res.status(400).json({
+      message: "El ID del período no es válido."
+    });
+  }
+
+  if (!name?.trim()) {
+    return res.status(400).json({
+      message: "El nombre es obligatorio."
+    });
+  }
+
+  if (!color?.trim()) {
+    return res.status(400).json({
+      message: "El color es obligatorio."
+    });
+  }
+    
+  const cleanSubjectName = name.trim();
+
+  if (cleanSubjectName.length > 50) {
+    return res.status(400).json({
+      message: "El nombre de la materia debe tener máximo 50 caracteres."
+    });
+  }
+
+  if (teacher && teacher.trim().length > 50) {
+    return res.status(400).json({
+      message: "El nombre del profesor debe tener máximo 50 caracteres."
+    });
+  }
+
+  const cleanTeacherName = teacher?.trim() || null;
+
+  try {
+
+    await assertPeriodOwnership(parsedPeriodId, userId);
+
+    const result = await pool.query(
+      `INSERT INTO subjects
+      (period_id, name, teacher, color)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *`,
+      [parsedPeriodId, cleanSubjectName, cleanTeacherName, color]
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: "Materia creada correctamente.",
+      subject: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    if (
+      error.code === "23505" &&
+      error.constraint === "period_subject_unique"
+    ) {
+      return res.status(409).json({
+        message: "Ya existe una materia con ese nombre en este período."
+      });
+    }
+
+    return res.status(500).json({
+      message: "Error en el servidor."
+    });
+  }
+}

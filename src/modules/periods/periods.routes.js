@@ -1,19 +1,21 @@
 import { Router } from "express";
-import { newPeriod, periods, deletePeriod, updatePeriod, requestedPeriod, getSubjects } from "../periods/periods.controller.js";
+import { createPeriod, getPeriods, getPeriod, updatePeriod, deletePeriod, getPeriodSubjects, createSubject } from "../periods/periods.controller.js";
 import { authMiddleware } from "../../middleware/authMiddleware.js";
 
 const router = Router();
 
 router.route("/")
-  .post(authMiddleware, newPeriod)
-  .get(authMiddleware, periods);
+  .post(authMiddleware, createPeriod)
+  .get(authMiddleware, getPeriods);
 
 router.route("/:periodId")
-  .delete(authMiddleware, deletePeriod)
+  .get(authMiddleware, getPeriod)
   .put(authMiddleware, updatePeriod)
-  .get(authMiddleware, requestedPeriod)
+  .delete(authMiddleware, deletePeriod)
+  
 
 router.route("/:periodId/subjects")
-  .get(authMiddleware, getSubjects);
+  .get(authMiddleware, getPeriodSubjects)
+  .post(authMiddleware, createSubject)
   
 export default router;
