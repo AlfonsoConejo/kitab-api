@@ -56,23 +56,33 @@ export const createPeriod = async (req, res) => {
 };
 
 export const getPeriods = async (req, res) => {
-  try{
+  try {
     const userId = req.user.id;
 
     const result = await pool.query(
-      `SELECT *
+      `
+      SELECT *
       FROM academic_periods
       WHERE user_id = $1
       `,
       [userId]
     );
 
+    const periods = result.rows.map((period) => ({
+      id: period.id,
+      name: period.name,
+      startDate: period.start_date.toISOString().slice(0, 10),
+      endDate: period.end_date.toISOString().slice(0, 10),
+      color: period.color,
+    }));
+
     return res.status(200).json({
       success: true,
-      data: result.rows
+      data: periods,
     });
-  } catch (error){
-    console.error("Error al obtener periodos:", error);
+
+  } catch (error) {
+    console.error(error);
     return res.status(500).json({
       success: false,
       message: "Error interno del servidor."
@@ -101,9 +111,17 @@ export const getPeriod = async (req, res) => {
       });
     }
 
+    const period = result.rows[0];
+
     return res.status(200).json({
       success: true,
-      data: result.rows[0]
+      data: {
+        id: period.id,
+        name: period.name,
+        startDate: period.start_date.toISOString().slice(0, 10),
+        endDate: period.end_date.toISOString().slice(0, 10),
+        color: period.color,
+      }
     });
 
   } catch (error){
