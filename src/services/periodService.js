@@ -1,7 +1,7 @@
 import { pool } from "../config/db.js";
 export const assertPeriodOwnership = async (periodId, userId) => {
   const result = await pool.query(
-    `SELECT id
+    `SELECT id, start_date::text AS start_date, end_date::text AS end_date
      FROM academic_periods
      WHERE id = $1
        AND user_id = $2`,
