@@ -9,6 +9,7 @@ export const createPeriod = async (req, res) => {
     // Validations
     if (!name?.trim() || !startDate || !endDate || !color) {
       return res.status(400).json({
+        success: false,
         message: "Todos los campos son obligatorios."
       });
     }
@@ -17,12 +18,14 @@ export const createPeriod = async (req, res) => {
 
     if (cleanName.length > 30) {
       return res.status(400).json({
+        success: false,
         message: "El nombre del periodo debe tener máximo 30 caracteres."
       });
     }
 
     if (startDate >= endDate) {
       return res.status(400).json({
+        success: false,
         message: "La fecha de inicio debe ser anterior a la fecha de finalización."
       });
     }
@@ -31,26 +34,28 @@ export const createPeriod = async (req, res) => {
       `INSERT INTO academic_periods
       (name, start_date, end_date, color, user_id)
       VALUES ($1, $2, $3, $4, $5)
-      RETURNING *`,
+      RETURNING id, name, start_date, end_date, color`,
       [cleanName, startDate, endDate, color, userId]
     );
 
     return res.status(201).json({
       success: true,
       message: "Periodo creado correctamente.",
-      period: result.rows[0]
+      data: normalizePeriod(result.rows[0])
     });
   } catch (error) {
     console.error(error);
 
     if (error.code === "23505") {
       return res.status(409).json({
+        success: false,
         message: "Ya existe un periodo con ese nombre."
       });
     }
 
     return res.status(500).json({
-      message: "Server error"
+      success: false,
+      message: "Error interno del servidor."
     });
   }
 };
@@ -68,17 +73,9 @@ export const getPeriods = async (req, res) => {
       [userId]
     );
 
-    const periods = result.rows.map((period) => ({
-      id: period.id,
-      name: period.name,
-      startDate: period.start_date.toISOString().slice(0, 10),
-      endDate: period.end_date.toISOString().slice(0, 10),
-      color: period.color,
-    }));
-
     return res.status(200).json({
       success: true,
-      data: periods,
+      data: result.rows.map(normalizePeriod),
     });
 
   } catch (error) {
@@ -115,13 +112,7 @@ export const getPeriod = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: {
-        id: period.id,
-        name: period.name,
-        startDate: period.start_date.toISOString().slice(0, 10),
-        endDate: period.end_date.toISOString().slice(0, 10),
-        color: period.color,
-      }
+      data: normalizePeriod(period),
     });
 
   } catch (error){
@@ -215,7 +206,7 @@ export const updatePeriod = async (req, res) => {
           color = $4
       WHERE id = $5
       AND user_id = $6
-      RETURNING *`,
+      RETURNING id, name, start_date, end_date, color`,
       [cleanName, startDate, endDate, color, periodId, userId]
     );
 
@@ -230,7 +221,7 @@ export const updatePeriod = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Periodo actualizado correctamente.",
-      period: result.rows[0],
+      data: normalizePeriod(result.rows[0]),
     });
   } catch (error) {
     console.error("Error al actualizar el periodo:", error);
@@ -383,4 +374,15 @@ export const createSubject = async (req, res) => {
       message: "Error en el servidor."
     });
   }
+}
+
+
+function normalizePeriod(period) {
+  return {
+    id: period.id,
+    name: period.name,
+    startDate: period.start_date.toISOString().slice(0, 10),
+    endDate: period.end_date.toISOString().slice(0, 10),
+    color: period.color,
+  };
 }
