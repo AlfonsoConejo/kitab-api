@@ -1,5 +1,6 @@
 import { pool } from "../../config/db.js"
 import { assertPeriodOwnership } from "../../services/periodService.js";
+import { normalizePeriod } from "../../validators.js/periodValidator.js";
 
 export const createPeriod = async (req, res) => {
   try {
@@ -442,15 +443,4 @@ export const createSubject = async (req, res) => {
       message: "Error en el servidor."
     });
   }
-}
-
-
-function normalizePeriod(period) {
-  return {
-    id: period.id,
-    name: period.name,
-    startDate: period.start_date.toISOString().slice(0, 10),
-    endDate: period.end_date.toISOString().slice(0, 10),
-    color: period.color,
-  };
 }
