@@ -23,7 +23,7 @@ export const createClasses= async (req, res) => {
 
   try{
 
-    // Verifiy subject ownerShip
+    // Verifiy subject ownership
     await assertSubjectOwnership(parsedSubjectId, userId, client);
 
     // Normalize data and validate each class
@@ -33,7 +33,6 @@ export const createClasses= async (req, res) => {
 
     await client.query("BEGIN");
     transactionStarted = true;
-
 
     // Insert classes on DB
     const insertedClasses = await insertClasses(

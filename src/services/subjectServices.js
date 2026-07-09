@@ -1,3 +1,6 @@
+import { pool } from "../config/db.js"
+import { normalizeSubject } from "../validators.js/subjectValidator.js";
+
 export const assertSubjectOwnership = async (subjectId, userId, client) => {
   const { rowCount } = await client.query(
     `
@@ -18,3 +21,23 @@ export const assertSubjectOwnership = async (subjectId, userId, client) => {
 
   return true;
 };
+
+export const insertSubject = async (periodId, normalizedSubject) => {
+  const {
+    name,
+    teacher,
+    color,
+    startDate,
+    endDate
+  } = normalizedSubject;
+
+  const result = await pool.query(
+    `INSERT INTO subjects
+    (period_id, name, teacher, color, start_date, end_date)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING *`,
+    [periodId, name, teacher, color, startDate, endDate]
+  );
+
+  return normalizeSubject(result.rows[0]);
+}

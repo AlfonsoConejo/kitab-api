@@ -1,6 +1,8 @@
 import { pool } from "../../config/db.js"
 import { assertPeriodOwnership } from "../../services/periodService.js";
 import { normalizePeriod } from "../../validators.js/periodValidator.js";
+import { normalizeAndValidateSubject} from "../../validators.js/subjectValidator.js";
+import { insertSubject } from "../../services/subjectServices.js";
 
 export const createPeriod = async (req, res) => {
   try {
@@ -301,12 +303,12 @@ export const getPeriodSubjects = async (req, res) => {
 
 export const createSubject = async (req, res) => {
   const { periodId } = req.params;
-  const { name, teacher, color, startDate, endDate } = req.body;
+  const subject = req.body;
   const userId = req.user.id;
 
   const parsedPeriodId = Number(periodId);
 
-  // Validations
+  // Validate period id
   if (!Number.isInteger(parsedPeriodId) || parsedPeriodId <= 0) {
     return res.status(400).json({
       success: false,
@@ -314,108 +316,21 @@ export const createSubject = async (req, res) => {
     });
   }
 
-  if (!name?.trim()) {
-    return res.status(400).json({
-      success: false,
-      message: "El nombre es obligatorio."
-    });
-  }
-
-  if (!color?.trim()) {
-    return res.status(400).json({
-      success: false,
-      message: "El color es obligatorio."
-    });
-  }
-
-  const cleanColor = color.trim();
-
-  if (!/^#[0-9A-Fa-f]{6}$/.test(cleanColor)) {
-    return res.status(400).json({
-      success: false,
-      message: "El color debe ser un código hexadecimal válido."
-    });
-  }
-    
-  const cleanSubjectName = name.trim();
-
-  if (cleanSubjectName.length > 40) {
-    return res.status(400).json({
-      success: false,
-      message: "El nombre de la materia debe tener máximo 40 caracteres."
-    });
-  }
-
-  if (teacher && teacher.trim().length > 50) {
-    return res.status(400).json({
-      success: false,
-      message: "El nombre del profesor debe tener máximo 50 caracteres."
-    });
-  }
-
-  const cleanTeacherName = teacher?.trim() || null;
-
-  if (!startDate) {
-    return res.status(400).json({
-      success: false,
-      message: "La fecha de inicio es obligatoria."
-    });
-  }
-
-  if (!endDate) {
-    return res.status(400).json({
-      success: false,
-      message: "La fecha de término es obligatoria."
-    });
-  }
-
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-
-  if (Number.isNaN(start.getTime())) {
-    return res.status(400).json({
-      success: false,
-      message: "La fecha de inicio no es válida."
-    });
-  }
-
-  if (Number.isNaN(end.getTime())) {
-    return res.status(400).json({
-      success: false,
-      message: "La fecha de término no es válida."
-    });
-  }
-
-  if (start >= end) {
-    return res.status(400).json({
-      success: false,
-      message: "La fecha de inicio debe ser anterior a la fecha de término."
-    });
-  }
-
   try {
 
+    // Verifiy period ownership
     const period = await assertPeriodOwnership(parsedPeriodId, userId);
 
-    if (startDate < period.start_date || endDate > period.end_date) {
-      return res.status(400).json({
-        success: false,
-        message: "Las fechas de la materia deben estar dentro del periodo académico."
-      });
-    }
+    // Normalize data and validate each class
+    const normalizedSubject = normalizeAndValidateSubject(subject, period);
 
-    const result = await pool.query(
-      `INSERT INTO subjects
-      (period_id, name, teacher, color, start_date, end_date)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *`,
-      [parsedPeriodId, cleanSubjectName, cleanTeacherName, cleanColor, start, end]
-    );
+    //Insert subject on DB
+    const createdSubject  = await insertSubject(parsedPeriodId, normalizedSubject);
 
     return res.status(201).json({
       success: true,
       message: "Materia creada correctamente.",
-      subject: result.rows[0]
+      subject: createdSubject 
     });
 
   } catch (error) {
@@ -425,6 +340,12 @@ export const createSubject = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Periodo no encontrado."
+      });
+    }
+    if (error.status === 400) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
       });
     }
 
