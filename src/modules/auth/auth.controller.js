@@ -647,12 +647,28 @@ const getClientIp = (req) => {
 };
 
 const getLocationFromIp = async (ipAddress) => {
+  if (!ipAddress) {
+    return {
+      city: null,
+      state: null,
+      country: null,
+    };
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
   try {
     const response = await fetch(
-      `https://ipapi.co/${ipAddress}/json/`
+      `https://api.ipquery.io/${ipAddress}`,
+      {
+        signal: controller.signal,
+      }
     );
 
-    console.log("Status:", response.status);
+    if (!response.ok) {
+      throw new Error(`HTTP Error ${response.status}`);
+    }
 
     const data = await response.json();
 
@@ -660,21 +676,20 @@ const getLocationFromIp = async (ipAddress) => {
       throw new Error(data.reason);
     }
 
-    console.log("IPAPI response:", data);
-
     return {
-      city: data.city || null,
-      state: data.region || null,
-      country: data.country_name || null,
+      city: data.city ?? null,
+      state: data.region ?? null,
+      country: data.country_name ?? null,
     };
-
   } catch (error) {
-    console.error("IPAPI error:", error);
+    console.error("IP Query error:", error);
 
     return {
       city: null,
       state: null,
       country: null,
     };
+  } finally {
+    clearTimeout(timeout);
   }
 };
