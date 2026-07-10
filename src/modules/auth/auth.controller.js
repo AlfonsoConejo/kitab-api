@@ -670,11 +670,15 @@ const getLocationFromIp = async (ipAddress) => {
       throw new Error(`HTTP Error ${response.status}`);
     }
 
+    console.log("Status:", response.status);
+
     const data = await response.json();
 
     if (data.error) {
       throw new Error(data.reason);
     }
+
+    console.log("IP Query response:", data);
 
     return {
       city: data.city ?? null,
