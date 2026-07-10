@@ -39,3 +39,28 @@ export const insertClasses = async (
 
   return insertedClasses;
 };
+
+export const readClasses = async (client, periodId) => {
+  const result = await client.query(
+    `
+    SELECT
+      c.id,
+      c.subject_id,
+      c.days,
+      c.start_time,
+      c.end_time,
+      c.mode,
+      c.classroom,
+      c.type
+    FROM classes c
+    JOIN subjects s
+      ON c.subject_id = s.id
+    JOIN academic_periods p
+      ON s.period_id = p.id
+    WHERE p.id = $1
+    `,
+    [periodId]
+  );
+
+  return result.rows;
+};

@@ -5,7 +5,7 @@ import { normalizeAndValidateSubject} from "../../validators.js/subjectValidator
 import { insertSubject } from "../../services/subjectServices.js";
 import { assertSubjectOwnership } from "../../services/subjectServices.js";
 import { normalizeAndValidateClasses } from "../../validators.js/classValidator.js";
-import { insertClasses } from "../../services/classService.js";
+import { insertClasses, readClasses } from "../../services/classService.js";
 
 export const createPeriod = async (req, res) => {
   try {
@@ -379,13 +379,6 @@ export const createSubject = async (req, res) => {
       });
     }
 
-    if (error.status === 403 && error.code === "SUBJECT_ACCESS_DENIED") {
-      return res.status(403).json({
-        success: false,
-        message: "No tienes acceso a esta materia."
-      });
-    }
-
     if (error.status === 400) {
       return res.status(400).json({
         success: false,
@@ -400,6 +393,55 @@ export const createSubject = async (req, res) => {
       return res.status(409).json({
         success: false,
         message: "Ya existe una materia con ese nombre en este periodo."
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Error en el servidor."
+    });
+  } finally {
+    if (client) {
+      client.release();
+    }
+  }
+}
+
+export const getClasses = async (req, res) => {
+  const { periodId } = req.params;
+  const userId = req.user.id;
+
+  const parsedPeriodId = Number(periodId);
+
+  // Validate period id
+  if (!Number.isInteger(parsedPeriodId) || parsedPeriodId <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: "El ID del período no es válido."
+    });
+  }
+
+  let client;
+
+  try {
+    client = await pool.connect();
+
+    await assertPeriodOwnership(parsedPeriodId, userId, client);
+
+    // Get all classes from the period
+    const classes = await readClasses(client, parsedPeriodId);
+
+    return res.status(200).json({
+      success: true,
+      classes
+    });
+  } catch (error) {
+    console.error(error);
+
+    if (error.status === 404 && error.code === "PERIOD_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: "Periodo no encontrado."
       });
     }
 
