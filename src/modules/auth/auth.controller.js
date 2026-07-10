@@ -681,9 +681,9 @@ const getLocationFromIp = async (ipAddress) => {
     console.log("IP Query response:", data);
 
     return {
-      city: data.city ?? null,
-      state: data.region ?? null,
-      country: data.country_name ?? null,
+      city: data.location.city ?? null,
+      state: data.location.state ?? null,
+      country: data.location.country ?? null,
     };
   } catch (error) {
     console.error("IP Query error:", error);
