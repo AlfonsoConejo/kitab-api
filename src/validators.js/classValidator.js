@@ -57,6 +57,10 @@ export const validateClasses = (classes) => {
       throwValidationError("Las modalidades solo pueden ser 'onsite' o 'online'.");
     }
 
+    if (mode === "online" && classroom) {
+      throwValidationError("Las clases en línea no pueden tener aula.");
+    }
+
     if (classroom && classroom.length > 10) {
       throwValidationError("El salón no puede tener más de 10 caracteres.");
     }
