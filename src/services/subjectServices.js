@@ -22,7 +22,7 @@ export const assertSubjectOwnership = async (subjectId, userId, client) => {
   return true;
 };
 
-export const insertSubject = async (periodId, normalizedSubject) => {
+export const insertSubject = async (periodId, normalizedSubject, client) => {
   const {
     name,
     teacher,
@@ -31,11 +31,11 @@ export const insertSubject = async (periodId, normalizedSubject) => {
     endDate
   } = normalizedSubject;
 
-  const result = await pool.query(
+  const result = await client.query(
     `INSERT INTO subjects
     (period_id, name, teacher, color, start_date, end_date)
     VALUES ($1, $2, $3, $4, $5, $6)
-    RETURNING *`,
+    RETURNING id, period_id, name, teacher, color, start_date, end_date`,
     [periodId, name, teacher, color, startDate, endDate]
   );
 

@@ -4,7 +4,7 @@ const TIME_REGEX  = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 export const normalizeAndValidateClasses = (classes) => {
 
-  const normalized = classes.map(normalizeClass);
+  const normalized = classes.map(normalizeClassInput);
 
   validateClasses(normalized);
 
@@ -81,11 +81,23 @@ const throwValidationError = (message) => {
   throw error;
 };
 
-export const normalizeClass = (classItem) => ({
+export const normalizeClassInput = (classItem) => ({
   days: classItem.days,
   type: classItem.type?.trim(),
   mode: classItem.mode?.trim(),
   classroom: classItem.classroom?.trim() || null,
   startTime: classItem.startTime?.trim(),
   endTime: classItem.endTime?.trim(),
+});
+
+// Normalize object coming from the DataBase
+export const normalizeClass = (classItem) => ({
+  id: classItem.id,
+  subjectId: classItem.subject_id,
+  days: classItem.days,
+  type: classItem.type,
+  mode: classItem.mode,
+  classroom: classItem.classroom,
+  startTime: classItem.start_time,
+  endTime: classItem.end_time,
 });

@@ -1,5 +1,5 @@
 import { assertSubjectOwnership } from "../../services/subjectServices.js";
-import { normalizeClass, normalizeAndValidateClasses } from "../../validators.js/classValidator.js";
+import { normalizeAndValidateClasses } from "../../validators.js/classValidator.js";
 import { insertClasses } from "../../services/classService.js";
 
 export const createClasses= async (req, res) => {

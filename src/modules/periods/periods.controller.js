@@ -3,6 +3,9 @@ import { assertPeriodOwnership } from "../../services/periodService.js";
 import { normalizePeriod } from "../../validators.js/periodValidator.js";
 import { normalizeAndValidateSubject} from "../../validators.js/subjectValidator.js";
 import { insertSubject } from "../../services/subjectServices.js";
+import { assertSubjectOwnership } from "../../services/subjectServices.js";
+import { normalizeAndValidateClasses } from "../../validators.js/classValidator.js";
+import { insertClasses } from "../../services/classService.js";
 
 export const createPeriod = async (req, res) => {
   try {
@@ -303,8 +306,11 @@ export const getPeriodSubjects = async (req, res) => {
 
 export const createSubject = async (req, res) => {
   const { periodId } = req.params;
-  const subject = req.body;
   const userId = req.user.id;
+  const {
+    classes = [],
+    ...subjectData
+  } = req.body;
 
   const parsedPeriodId = Number(periodId);
 
@@ -316,32 +322,70 @@ export const createSubject = async (req, res) => {
     });
   }
 
+  let client;
+  let transactionStarted = false;
+
   try {
+    client = await pool.connect();
+
+    await client.query("BEGIN");
+    transactionStarted = true;
 
     // Verifiy period ownership
-    const period = await assertPeriodOwnership(parsedPeriodId, userId);
+    const period = await assertPeriodOwnership(parsedPeriodId, userId, client);
 
-    // Normalize data and validate each class
-    const normalizedSubject = normalizeAndValidateSubject(subject, period);
+    // // Normalize and validate subject
+    const normalizedSubject = normalizeAndValidateSubject(subjectData, period);
 
     //Insert subject on DB
-    const createdSubject  = await insertSubject(parsedPeriodId, normalizedSubject);
+    const createdSubject  = await insertSubject(parsedPeriodId, normalizedSubject, client);
+
+    let createdClasses = [];
+
+    // It there are classes
+    if(classes.length > 0){
+      // // Normalize and validate classes
+      const normalizedClasses = normalizeAndValidateClasses(classes);
+
+      // Insert classes on DB
+      createdClasses =
+        await insertClasses(
+          client,
+          createdSubject.id,
+          normalizedClasses);
+    }
+
+    await client.query("COMMIT");
+    transactionStarted = false;
 
     return res.status(201).json({
       success: true,
       message: "Materia creada correctamente.",
-      subject: createdSubject 
+      subject: createdSubject,
+      classes: createdClasses
     });
 
   } catch (error) {
     console.error(error);
 
-    if (error.status === 404) {
+    if (client && transactionStarted) {
+      await client.query("ROLLBACK");
+    }
+
+    if (error.status === 404 && error.code === "PERIOD_NOT_FOUND") {
       return res.status(404).json({
         success: false,
         message: "Periodo no encontrado."
       });
     }
+
+    if (error.status === 403 && error.code === "SUBJECT_ACCESS_DENIED") {
+      return res.status(403).json({
+        success: false,
+        message: "No tienes acceso a esta materia."
+      });
+    }
+
     if (error.status === 400) {
       return res.status(400).json({
         success: false,
@@ -363,5 +407,9 @@ export const createSubject = async (req, res) => {
       success: false,
       message: "Error en el servidor."
     });
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 }

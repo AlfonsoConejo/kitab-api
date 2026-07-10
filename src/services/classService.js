@@ -1,4 +1,4 @@
-import { pool } from "../config/db.js";
+import { normalizeClass } from "../validators.js/classValidator.js";
 
 export const insertClasses = async (
   client,
@@ -22,7 +22,7 @@ export const insertClasses = async (
       `INSERT INTO classes
       (subject_id, days, start_time, end_time, mode, classroom, type)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING *`,
+      RETURNING id, subject_id, days, start_time, end_time, mode, classroom, type`,
       [
         subjectId,
         days,
@@ -34,7 +34,7 @@ export const insertClasses = async (
       ]
     );
 
-    insertedClasses.push(result.rows[0]);
+    insertedClasses.push(normalizeClass(result.rows[0]));
   }
 
   return insertedClasses;
