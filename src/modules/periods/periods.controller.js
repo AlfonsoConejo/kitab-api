@@ -408,6 +408,7 @@ export const createSubject = async (req, res) => {
 }
 
 export const getClasses = async (req, res) => {
+
   const { periodId } = req.params;
   const userId = req.user.id;
 
@@ -433,7 +434,7 @@ export const getClasses = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      classes
+      data: classes
     });
   } catch (error) {
     console.error(error);
