@@ -2,7 +2,7 @@ import { pool } from "../../config/db.js"
 import { assertPeriodOwnership } from "../../services/periodService.js";
 import { normalizePeriod } from "../../validators.js/periodValidator.js";
 import { normalizeAndValidateSubject, normalizeSubject} from "../../validators.js/subjectValidator.js";
-import { insertSubject, assertSubjectOwnership } from "../../services/subjectServices.js";
+import { insertSubject, assertSubjectOwnership, readSubjectsByPeriod } from "../../services/subjectServices.js";
 import { normalizeAndValidateClasses } from "../../validators.js/classValidator.js";
 import { insertClasses, readClasses } from "../../services/classService.js";
 
@@ -246,61 +246,51 @@ export const updatePeriod = async (req, res) => {
 };
 
 export const getPeriodSubjects = async (req, res) => {
+
+  const { periodId } = req.params;
+  const userId = req.user.id;
+  const parsedPeriodId = Number(periodId);
+
+  // Validate period id
+  if (!Number.isInteger(parsedPeriodId) || parsedPeriodId <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: "El ID del período no es válido."
+    });
+  }
+
+  let client;
+
   try {
-    const userId = req.user.id;
-    const periodId = Number(req.params.periodId);
+    client = await pool.connect();
+    
+    await assertPeriodOwnership(parsedPeriodId, userId, client);
 
-    // Validate received periodId
-    if (!Number.isInteger(periodId) || periodId <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "ID de periodo inválido."
-      });
-    }
+    const subjects = await readSubjectsByPeriod(parsedPeriodId, client);
 
-    // Verify that the period exists and belongs to the user
-    const period = await pool.query(
-      `SELECT id
-        FROM academic_periods
-        WHERE id = $1
-        AND user_id = $2`,
-        [periodId, userId]
-      );
+    return res.status(200).json({
+      success: true,
+      data: subjects,
+    });
 
-    if (period.rows.length === 0) {
+  } catch (error) {
+    console.error("Error al obtener las materias:", error);
+
+    if (error.status === 404 && error.code === "PERIOD_NOT_FOUND") {
       return res.status(404).json({
         success: false,
         message: "Periodo no encontrado."
       });
     }
 
-    // Get information of the subjects in the period
-    const result = await pool.query(
-      `SELECT
-        id,
-        period_id,
-        name,
-        teacher,
-        color,
-        start_date,
-        end_date
-      FROM subjects
-      WHERE period_id = $1
-      ORDER BY name;`,
-      [periodId]
-    );
-
-    return res.status(200).json({
-      success: true,
-      data: result.rows.map(normalizeSubject)
-    });
-  } catch (error) {
-    console.error("Error al obtener las materias:", error);
-
     return res.status(500).json({
       success: false,
       message: "Error interno del servidor."
     });
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 };
 
@@ -448,7 +438,7 @@ export const getClasses = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Error en el servidor."
+      message: "Error interno del servidor."
     });
   } finally {
     if (client) {

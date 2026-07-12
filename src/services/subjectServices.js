@@ -22,6 +22,25 @@ export const assertSubjectOwnership = async (subjectId, userId, client) => {
   return true;
 };
 
+export const readSubjectsByPeriod = async (periodId, client = pool) => {
+  const result = await client.query(
+    `SELECT
+      id,
+      period_id,
+      name,
+      teacher,
+      color,
+      start_date,
+      end_date
+    FROM subjects
+    WHERE period_id = $1
+    ORDER BY name;`,
+    [periodId]
+  );
+
+  return result.rows.map(normalizeSubject);
+};
+
 export const insertSubject = async (periodId, normalizedSubject, client) => {
   const {
     name,
