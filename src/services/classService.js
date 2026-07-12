@@ -62,5 +62,5 @@ export const readClasses = async (client, periodId) => {
     [periodId]
   );
 
-  return result.rows;
+  return result.rows.map(normalizeClass);
 };

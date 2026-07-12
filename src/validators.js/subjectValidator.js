@@ -86,6 +86,6 @@ export const normalizeSubject = (subject) => ({
   name: subject.name,
   teacher: subject.teacher,
   color: subject.color,
-  startDate: subject.start_date.toISOString().slice(0, 10),
-  endDate: subject.end_date.toISOString().slice(0, 10),
+  startDate: subject.start_date.toISOString().slice(0, 10) ?? null,
+  endDate: subject.end_date.toISOString().slice(0, 10) ?? null,
 });

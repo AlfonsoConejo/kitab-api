@@ -1,9 +1,8 @@
 import { pool } from "../../config/db.js"
 import { assertPeriodOwnership } from "../../services/periodService.js";
 import { normalizePeriod } from "../../validators.js/periodValidator.js";
-import { normalizeAndValidateSubject} from "../../validators.js/subjectValidator.js";
-import { insertSubject } from "../../services/subjectServices.js";
-import { assertSubjectOwnership } from "../../services/subjectServices.js";
+import { normalizeAndValidateSubject, normalizeSubject} from "../../validators.js/subjectValidator.js";
+import { insertSubject, assertSubjectOwnership } from "../../services/subjectServices.js";
 import { normalizeAndValidateClasses } from "../../validators.js/classValidator.js";
 import { insertClasses, readClasses } from "../../services/classService.js";
 
@@ -279,11 +278,12 @@ export const getPeriodSubjects = async (req, res) => {
     const result = await pool.query(
       `SELECT
         id,
+        period_id,
         name,
         teacher,
         color,
-        created_at,
-        updated_at
+        start_date,
+        end_date
       FROM subjects
       WHERE period_id = $1
       ORDER BY name;`,
@@ -292,7 +292,7 @@ export const getPeriodSubjects = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: result.rows
+      data: result.rows.map(normalizeSubject)
     });
   } catch (error) {
     console.error("Error al obtener las materias:", error);
