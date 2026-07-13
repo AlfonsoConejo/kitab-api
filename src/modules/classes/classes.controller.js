@@ -57,10 +57,10 @@ export const createClasses= async (req, res) => {
       await client.query("ROLLBACK");
     }
 
-    if (error.code === 'SUBJECT_ACCESS_DENIED') {
+    if (error.code === 'SUBJECT_NOT_FOUND') {
       return res.status(403).json({
         success: false,
-        message: "No tienes acceso a esta materia."
+        message: "La materia no fue encontrada."
       });
     }
 

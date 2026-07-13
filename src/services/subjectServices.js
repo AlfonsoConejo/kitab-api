@@ -13,9 +13,9 @@ export const assertSubjectOwnership = async (subjectId, userId, client) => {
   );
 
   if (rowCount === 0) {
-    const error = new Error("SUBJECT_ACCESS_DENIED");
-    error.code = "SUBJECT_ACCESS_DENIED";
-    error.status = 403;
+    const error = new Error("SUBJECT_NOT_FOUND");
+    error.code = "SUBJECT_NOT_FOUND";
+    error.status = 404;
     throw error;
   }
 
@@ -59,4 +59,12 @@ export const insertSubject = async (periodId, normalizedSubject, client) => {
   );
 
   return normalizeSubject(result.rows[0]);
+}
+
+export const deleteSubject = async(subjectId, client) => {
+  const { rowCount } = await client.query(
+    `DELETE FROM subjects
+    WHERE id = $1`,
+    [subjectId]
+  );
 }
