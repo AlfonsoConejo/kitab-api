@@ -1,3 +1,4 @@
+import { pool } from "../config/db.js";
 import { normalizeClass } from "../validators.js/classValidator.js";
 
 export const insertClasses = async (
@@ -40,7 +41,7 @@ export const insertClasses = async (
   return insertedClasses;
 };
 
-export const readClasses = async (client, periodId) => {
+export const readClassesByPeriod = async (client, periodId) => {
   const result = await client.query(
     `
     SELECT
@@ -60,6 +61,28 @@ export const readClasses = async (client, periodId) => {
     WHERE p.id = $1
     `,
     [periodId]
+  );
+
+  return result.rows.map(normalizeClass);
+};
+
+export const readClassesBySubject = async (subjectId, client) => {
+  const result = await client.query(
+    `
+    SELECT
+      id,
+      subject_id,
+      days,
+      start_time,
+      end_time,
+      mode,
+      classroom,
+      type
+    FROM classes
+    WHERE subject_id = $1
+    ORDER BY id
+    `,
+    [subjectId]
   );
 
   return result.rows.map(normalizeClass);

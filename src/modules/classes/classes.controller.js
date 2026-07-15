@@ -2,7 +2,7 @@ import { assertSubjectOwnership } from "../../services/subjectServices.js";
 import { normalizeAndValidateClasses } from "../../validators.js/classValidator.js";
 import { insertClasses } from "../../services/classService.js";
 
-export const createClasses= async (req, res) => {
+export const createClasses = async (req, res) => {
 
   const { classes } = req.body;
   const {subjectId} = req.params;
@@ -22,6 +22,7 @@ export const createClasses= async (req, res) => {
   let client
 
   try{
+    client = await pool.connect();
 
     // Verifiy subject ownership
     await assertSubjectOwnership(parsedSubjectId, userId, client);

@@ -4,7 +4,7 @@ import { normalizePeriod } from "../../validators.js/periodValidator.js";
 import { normalizeAndValidateSubject, normalizeSubject} from "../../validators.js/subjectValidator.js";
 import { insertSubject, assertSubjectOwnership, readSubjectsByPeriod } from "../../services/subjectServices.js";
 import { normalizeAndValidateClasses } from "../../validators.js/classValidator.js";
-import { insertClasses, readClasses } from "../../services/classService.js";
+import { insertClasses, readClassesByPeriod } from "../../services/classService.js";
 
 export const createPeriod = async (req, res) => {
   try {
@@ -420,7 +420,7 @@ export const getClasses = async (req, res) => {
     await assertPeriodOwnership(parsedPeriodId, userId, client);
 
     // Get all classes from the period
-    const classes = await readClasses(client, parsedPeriodId);
+    const classes = await readClassesByPeriod(client, parsedPeriodId);
 
     return res.status(200).json({
       success: true,

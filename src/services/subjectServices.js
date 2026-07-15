@@ -41,6 +41,28 @@ export const readSubjectsByPeriod = async (periodId, client = pool) => {
   return result.rows.map(normalizeSubject);
 };
 
+export const readSubject = async (subjectId, client = pool) => {
+  const result = await client.query(
+    `SELECT
+      id,
+      period_id,
+      name,
+      teacher,
+      color,
+      start_date,
+      end_date
+    FROM subjects
+    WHERE id = $1`,
+    [subjectId]
+  );
+
+  if (result.rowCount === 0) {
+    return null;
+  }
+
+  return normalizeSubject(result.rows[0]);
+}
+
 export const insertSubject = async (periodId, normalizedSubject, client) => {
   const {
     name,

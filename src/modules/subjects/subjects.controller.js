@@ -1,5 +1,6 @@
 import { pool } from "../../config/db.js"
-import { assertSubjectOwnership, deleteSubject as deleteSubjectService } from "../../services/subjectServices.js";
+import { readClassesBySubject } from "../../services/classService.js";
+import { assertSubjectOwnership, deleteSubject as deleteSubjectService, readSubject } from "../../services/subjectServices.js";
 
 export const deleteSubject = async (req, res) => {
   const userId = req.user.id;
@@ -50,4 +51,62 @@ export const deleteSubject = async (req, res) => {
       client.release();
     }
 	}
+}
+
+export const getSubjectWithClasses = async (req, res) => {
+
+  const userId = req.user.id;
+  const {subjectId} = req.params;
+
+  // Validate subjectId
+  const parsedSubjectId = Number(subjectId);
+
+  if (!Number.isInteger(parsedSubjectId) || parsedSubjectId <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: "El ID de la materia no es válido."
+    });
+  }
+
+  let client
+
+  try{
+    client = await pool.connect();
+
+    // Verify subject ownership
+    await assertSubjectOwnership(parsedSubjectId, userId, client);
+
+    // Get requested subject and its classes
+    const [subject, classes] = await Promise.all([
+      readSubject(parsedSubjectId, client),
+      readClassesBySubject(parsedSubjectId, client),
+    ]);
+
+    // Subject retrieved successfully
+    return res.status(200).json({
+      success: true,
+      data: {
+        ...subject,
+        classes,
+      },
+    });
+  } catch (error) {
+    console.error("Error al obtener la materia y sus clases:", error);
+
+		if (error.code === "SUBJECT_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: "La materia no fue encontrada."
+      });
+    }
+
+		return res.status(500).json({
+      success: false,
+      message: "Error interno del servidor."
+    });
+  } finally {
+    if (client) {
+      client.release();
+    }
+  }
 }
