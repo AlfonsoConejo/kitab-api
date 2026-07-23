@@ -59,6 +59,7 @@ export const readClassesByPeriod = async (client, periodId) => {
     JOIN academic_periods p
       ON s.period_id = p.id
     WHERE p.id = $1
+    ORDER BY start_time ASC
     `,
     [periodId]
   );
@@ -80,7 +81,7 @@ export const readClassesBySubject = async (subjectId, client) => {
       type
     FROM classes
     WHERE subject_id = $1
-    ORDER BY id
+    ORDER BY start_time ASC
     `,
     [subjectId]
   );
