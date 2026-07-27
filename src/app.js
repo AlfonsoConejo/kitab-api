@@ -18,13 +18,41 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-app.get('/api/test', async (req, res) => {
+// HEALTH CHECK COMPLETO
+app.get('/health', async (req, res) => {
+  const healthCheck = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    services: {
+      database: {
+        status: 'unknown',
+        latency: 0
+      }
+    },
+    memory: process.memoryUsage(),
+    node: process.version,
+    environment: process.env.NODE_ENV
+  };
+
+  // Medir tiempo de respuesta de la DB
+  const start = Date.now();
   try {
-    const result = await pool.query('SELECT version()');
-    res.json(result.rows);
+    await pool.query('SELECT 1');
+    const end = Date.now();
+    healthCheck.services.database.status = 'connected';
+    healthCheck.services.database.latency = end - start;
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error conectando a la DB' });
+    healthCheck.services.database.status = 'disconnected';
+    healthCheck.services.database.error = error.message;
+    healthCheck.status = 'degraded';
+  }
+
+  // Si la DB está caída, el servicio no está saludable
+  if (healthCheck.services.database.status === 'disconnected') {
+    res.status(503).json(healthCheck);
+  } else {
+    res.status(200).json(healthCheck);
   }
 });
 
