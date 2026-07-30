@@ -2,18 +2,17 @@ import { pool } from "../config/db.js";
 
 export const assertPeriodOwnership = async (periodId, userId, client) => {
   const result = await client.query(
-    `SELECT id, start_date::text AS start_date, end_date::text AS end_date
-     FROM academic_periods
-     WHERE id = $1
-       AND user_id = $2`,
+    `SELECT id, name, start_date, end_date, color, user_id, created_at
+    FROM academic_periods
+    WHERE id = $1 AND user_id = $2`,
     [periodId, userId]
   );
 
   if (result.rowCount === 0) {
-    const error = new Error("El periodo no existe o no te pertenece");
+    const error = new Error("El periodo no existe o no te pertenece.");
     error.code = "PERIOD_NOT_FOUND";
     error.status = 404;
-    error.name = "NotFoundError"; // ← Para identificar en el catch
+    error.name = "NotFoundError";
     throw error;
   }
 
@@ -48,4 +47,24 @@ export const readPeriodsByUser = async (userId, client = pool) => {
   );
 
   return result.rows;
+};
+
+export const deletePeriodDB = async (periodId, client = pool) => {
+  const db = client || pool;
+
+  const result = await db.query(
+    `DELETE FROM academic_periods
+    WHERE id = $1
+    RETURNING id`, // ← Confirma qué se eliminó
+    [periodId]
+  );
+
+  if (result.rowCount === 0) {
+    const error = new Error("El periodo no existe");
+    error.code = "PERIOD_NOT_FOUND";
+    error.status = 404;
+    throw error;
+  }
+
+  return result.rows[0];
 };
