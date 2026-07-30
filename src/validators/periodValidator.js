@@ -70,6 +70,8 @@ export function normalizePeriodFromDB(dbPeriod) {
     startDate: dbPeriod.start_date ? new Date(dbPeriod.start_date).toISOString().slice(0, 10) : null,
     endDate: dbPeriod.end_date ? new Date(dbPeriod.end_date).toISOString().slice(0, 10) : null,
     color: dbPeriod.color || '#EF4444',
+    userId: dbPeriod.user_id,
+    createdAt: dbPeriod.created_at
   }
 }
 

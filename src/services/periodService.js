@@ -35,3 +35,17 @@ export const insertPeriod = async (period, userId, client = pool) => {
 
   return result.rows[0];
 };
+
+export const readPeriodsByUser = async (userId, client = pool) => {
+  const db = client || pool;
+
+  const result = await db.query(
+    `SELECT id, name, start_date, end_date, color, user_id, created_at
+    FROM academic_periods
+    WHERE user_id = $1
+    ORDER BY start_date DESC`,
+    [userId]
+  );
+
+  return result.rows;
+};

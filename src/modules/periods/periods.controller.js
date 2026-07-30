@@ -1,5 +1,5 @@
 import { pool } from "../../config/db.js"
-import { assertPeriodOwnership, insertPeriod } from "../../services/periodService.js";
+import { assertPeriodOwnership, insertPeriod, readPeriodsByUser } from "../../services/periodService.js";
 import { normalizeAndValidatePeriod, normalizePeriodFromDB } from "../../validators/periodValidator.js";
 import { normalizeAndValidateSubject, normalizeSubject} from "../../validators/subjectValidator.js";
 import { insertSubject, assertSubjectOwnership, readSubjectsByPeriod } from "../../services/subjectServices.js";
@@ -68,29 +68,44 @@ export const createPeriod = async (req, res) => {
 };
 
 export const getPeriods = async (req, res) => {
-  try {
-    const userId = req.user.id;
+  // Verify user authentication
+  const userId = req.user?.id;
 
-    const result = await pool.query(
-      `
-      SELECT *
-      FROM academic_periods
-      WHERE user_id = $1
-      `,
-      [userId]
-    );
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: "Usuario no autenticado"
+    });
+  }
+
+  let client;
+
+  try {
+    client = await pool.connect();
+
+    // Get periods from DB (return array in snake_case)
+    const periodsRaw = await readPeriodsByUser(userId, client);
+
+    // Normalize for frontend
+    const periodsForFrontend = periodsRaw.map(normalizePeriodFromDB);
 
     return res.status(200).json({
       success: true,
-      data: result.rows.map(normalizePeriod),
+      data: periodsForFrontend,
     });
 
   } catch (error) {
-    console.error(error);
+    console.error("Error en getPeriods:", error);
+    
     return res.status(500).json({
       success: false,
       message: "Error interno del servidor."
     });
+
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 };
 
