@@ -1,7 +1,7 @@
 import { pool } from "../../config/db.js"
 import { readClassesBySubject } from "../../services/classService.js";
 import { insertClasses } from "../../services/classService.js";
-import { normalizeAndValidateClasses } from "../../validators.js/classValidator.js";
+import { normalizeAndValidateClasses } from "../../validators/classValidator.js";
 import { assertSubjectOwnership, deleteSubject as deleteSubjectService, readSubject } from "../../services/subjectServices.js";
 
 export const createClasses = async (req, res) => {
