@@ -68,3 +68,26 @@ export const deletePeriodDB = async (periodId, client = pool) => {
 
   return result.rows[0];
 };
+
+export const updatePeriodDB = async (periodId, period, client = pool) => {
+  const { name, start_date, end_date, color } = period;
+  const db = client || pool;
+
+  const result = await db.query(
+    `UPDATE academic_periods
+    SET name = $1,
+        start_date = $2,
+        end_date = $3,
+        color = $4
+    WHERE id = $5
+    RETURNING id, name, start_date, end_date, color, user_id, created_at`,
+    [name, start_date, end_date, color, periodId]
+  );
+
+  // Check if there were rows affected
+  if (result.rowCount === 0) {
+    return null; 
+  }
+
+  return result.rows[0];
+};

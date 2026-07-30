@@ -1,5 +1,5 @@
 import { pool } from "../../config/db.js"
-import { assertPeriodOwnership, insertPeriod, readPeriodsByUser, deletePeriodDB } from "../../services/periodService.js";
+import { assertPeriodOwnership, insertPeriod, readPeriodsByUser, deletePeriodDB, updatePeriodDB } from "../../services/periodService.js";
 import { normalizeAndValidatePeriod, normalizePeriodFromDB } from "../../validators/periodValidator.js";
 import { normalizeAndValidateSubject, normalizeSubject} from "../../validators/subjectValidator.js";
 import { insertSubject, assertSubjectOwnership, readSubjectsByPeriod } from "../../services/subjectServices.js";
@@ -10,7 +10,6 @@ export const createPeriod = async (req, res) => {
 
   // Verify user authentication
   const userId = req.user?.id;
-
   if (!userId) {
     return res.status(401).json({
       success: false,
@@ -70,7 +69,6 @@ export const createPeriod = async (req, res) => {
 export const getPeriods = async (req, res) => {
   // Verify user authentication
   const userId = req.user?.id;
-
   if (!userId) {
     return res.status(401).json({
       success: false,
@@ -110,8 +108,8 @@ export const getPeriods = async (req, res) => {
 };
 
 export const getPeriod = async (req, res) => {
+  // Verify user authentication
   const userId = req.user?.id;
-
   if (!userId) {
     return res.status(401).json({
       success: false,
@@ -168,10 +166,9 @@ export const getPeriod = async (req, res) => {
   }
 }
 
-export const deletePeriod = async (req, res) => {
-    
+export const deletePeriod = async (req, res) => {  
+  // Verify user authentication
   const userId = req.user?.id;
-
   if (!userId) {
     return res.status(401).json({
       success: false,
@@ -231,71 +228,84 @@ export const deletePeriod = async (req, res) => {
 };
 
 export const updatePeriod = async (req, res) => {
+  // Verify authentication
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: "Usuario no autenticado"
+    });
+  }
+
+  const { periodId } = req.params;
+  const parsedPeriodId = Number(periodId);
+
+  // Validate period id
+  if (!Number.isInteger(parsedPeriodId) || parsedPeriodId <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: "El ID del período no es válido."
+    });
+  }
+
+  // Validate that at least one field is sent
+  if (!req.body || Object.keys(req.body).length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Debes enviar al menos un campo para actualizar."
+    });
+  }
+
+  let client;
+
   try {
-    const userId = req.user.id;
-    const periodId = Number(req.params.periodId);
-    const { name, startDate, endDate, color } = req.body;
+    client = await pool.connect();
 
-    // Validations
+    // Verify period ownership
+    await assertPeriodOwnership(parsedPeriodId, userId, client);
 
-    if (!Number.isInteger(periodId) || periodId <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "ID de periodo inválido."
-      });
-    }
-
-    if (!name?.trim() || !startDate || !endDate || !color) {
-      return res.status(400).json({
-        success: false,
-        message: "Todos los campos son obligatorios."
-      });
-    }
-
-    const cleanName = name.trim();
-    if (cleanName.length > 30) {
-      return res.status(400).json({
-        success: false,
-        message: "El nombre del periodo debe tener máximo 30 caracteres."
-      });
-    }
-
-    // Date validation
-    if (startDate >= endDate) {
-      return res.status(400).json({
-        success: false,
-        message: "La fecha de inicio debe ser anterior a la fecha de finalización."
-      });
-    }
+    // Normalize and validate period
+    const normalizedPeriod = normalizeAndValidatePeriod(req.body);
 
     // Execute update
-    const result = await pool.query(
-      `UPDATE academic_periods
-      SET name = $1,
-          start_date = $2,
-          end_date = $3,
-          color = $4
-      WHERE id = $5
-      AND user_id = $6
-      RETURNING id, name, start_date, end_date, color`,
-      [cleanName, startDate, endDate, color, periodId, userId]
+    const updatedPeriod = await updatePeriodDB(
+      parsedPeriodId,
+      normalizedPeriod,
+      client
     );
 
-    // Verify if the period exists and belongs to the user
-    if (result.rowCount === 0) {
+    // If updatePeriodDB returns null (nothing was updated)
+    if (!updatedPeriod) {
       return res.status(404).json({
         success: false,
-        message: "El periodo académico no existe."
+        message: "El periodo no existe o no te pertenece."
       });
     }
+
+    const periodForFrontend = normalizePeriodFromDB(updatedPeriod);
 
     return res.status(200).json({
       success: true,
       message: "Periodo actualizado correctamente.",
-      data: normalizePeriod(result.rows[0]),
+      data: periodForFrontend,
     });
+
   } catch (error) {
-    console.error("Error al actualizar el periodo:", error);
+    console.error("Error en updatePeriod:", error);
+
+    if (error.code === "PERIOD_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
 
     if (error.code === "23505") {
       return res.status(409).json({
@@ -308,6 +318,10 @@ export const updatePeriod = async (req, res) => {
       success: false,
       message: "Error interno del servidor."
     });
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 };
 
