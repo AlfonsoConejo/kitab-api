@@ -1,55 +1,52 @@
 import { pool } from "../../config/db.js"
-import { assertPeriodOwnership } from "../../services/periodService.js";
-import { normalizePeriod } from "../../validators.js/periodValidator.js";
-import { normalizeAndValidateSubject, normalizeSubject} from "../../validators.js/subjectValidator.js";
+import { assertPeriodOwnership, insertPeriod } from "../../services/periodService.js";
+import { normalizeAndValidatePeriod, normalizePeriodFromDB } from "../../validators/periodValidator.js";
+import { normalizeAndValidateSubject, normalizeSubject} from "../../validators/subjectValidator.js";
 import { insertSubject, assertSubjectOwnership, readSubjectsByPeriod } from "../../services/subjectServices.js";
-import { normalizeAndValidateClasses } from "../../validators.js/classValidator.js";
+import { normalizeAndValidateClasses } from "../../validators/classValidator.js";
 import { insertClasses, readClassesByPeriod } from "../../services/classService.js";
 
 export const createPeriod = async (req, res) => {
+
+  // Verify user authentication
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: "Usuario no autenticado"
+    });
+  }
+  
+  let client;
+
   try {
-    const { name, startDate, endDate, color } = req.body;
-    const userId = req.user.id;
+    client = await pool.connect();
 
-    // Validations
-    if (!name?.trim() || !startDate || !endDate || !color) {
-      return res.status(400).json({
-        success: false,
-        message: "Todos los campos son obligatorios."
-      });
-    }
-    
-    const cleanName = name.trim();
+    // Normalize and validate period
+    const normalizedPeriod = normalizeAndValidatePeriod(req.body);
 
-    if (cleanName.length > 30) {
-      return res.status(400).json({
-        success: false,
-        message: "El nombre del periodo debe tener máximo 30 caracteres."
-      });
-    }
+    // Insert period on DB
+    const createdPeriod  = await insertPeriod(normalizedPeriod, userId, client);
 
-    if (startDate >= endDate) {
-      return res.status(400).json({
-        success: false,
-        message: "La fecha de inicio debe ser anterior a la fecha de finalización."
-      });
-    }
-
-    const result = await pool.query(
-      `INSERT INTO academic_periods
-      (name, start_date, end_date, color, user_id)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, name, start_date, end_date, color`,
-      [cleanName, startDate, endDate, color, userId]
-    );
+    const periodForFrontend = normalizePeriodFromDB(createdPeriod);
 
     return res.status(201).json({
       success: true,
       message: "Periodo creado correctamente.",
-      data: normalizePeriod(result.rows[0])
+      data: periodForFrontend
     });
+
   } catch (error) {
-    console.error(error);
+    console.error("Error on createPeriod:", error);
+
+    // Validation error
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
 
     if (error.code === "23505") {
       return res.status(409).json({
@@ -62,6 +59,11 @@ export const createPeriod = async (req, res) => {
       success: false,
       message: "Error interno del servidor."
     });
+
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 };
 

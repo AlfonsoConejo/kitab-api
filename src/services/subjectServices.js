@@ -1,5 +1,5 @@
 import { pool } from "../config/db.js"
-import { normalizeSubject } from "../validators.js/subjectValidator.js";
+import { normalizeSubject } from "../validators/subjectValidator.js";
 
 export const assertSubjectOwnership = async (subjectId, userId, client) => {
   const { rowCount } = await client.query(

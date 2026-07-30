@@ -1,5 +1,5 @@
 import { pool } from "../config/db.js";
-import { normalizeClass } from "../validators.js/classValidator.js";
+import { normalizeClass } from "../validators/classValidator.js";
 
 export const insertClasses = async (
   client,
