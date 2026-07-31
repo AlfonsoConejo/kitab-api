@@ -2,7 +2,7 @@ const COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
 
 export const normalizeAndValidateSubject = (subject, period) => {
 
-  const normalized = normalizeSubjectInput(subject);
+  const normalized = normalizeSubjectToDB(subject);
   
   validateSubject(normalized, period);
   

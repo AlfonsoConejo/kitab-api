@@ -1,5 +1,4 @@
 import { pool } from "../config/db.js"
-import { normalizeSubject } from "../validators/subjectValidator.js";
 
 export const assertSubjectOwnership = async (subjectId, userId, client) => {
   const { rowCount } = await client.query(
@@ -82,7 +81,7 @@ export const insertSubject = async (periodId, normalizedSubject, client) => {
     [periodId, name, teacher, color, startDate, endDate]
   );
 
-  return normalizeSubject(result.rows[0]);
+  return result.rows[0];
 }
 
 export const deleteSubject = async(subjectId, client) => {
