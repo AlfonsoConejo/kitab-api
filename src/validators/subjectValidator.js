@@ -70,22 +70,51 @@ const throwValidationError = (message) => {
   throw error;
 };
 
-// Normalize object coming from the frontend.
-export const normalizeSubjectInput = (subject) => ({
-  name: subject.name?.trim(),
-  teacher: subject.teacher?.trim() || null,
-  color: subject.color?.trim(),
-  startDate: new Date(subject.startDate),
-  endDate: new Date(subject.endDate)
-});
+export function normalizeSubjectToDB(frontData, forUpdate = false) {
+  if (!frontData) return null;
+
+  const result = {
+    name: frontData.name?.trim() || '',
+    teacher: frontData.teacher?.trim() || null,
+    color: frontData.color?.trim() || '#EF4444',
+    start_date: frontData.startDate || null,
+    end_date: frontData.endDate || null,
+    period_id: frontData.periodId || null
+  };
+
+  // Para UPDATE, eliminar campos undefined
+  if (forUpdate) {
+    Object.keys(result).forEach(key => {
+      if (result[key] === undefined) delete result[key];
+    });
+  }
+
+  return result;
+}
 
 // Normalize object coming from the DataBase
-export const normalizeSubject = (subject) => ({
-  id: subject.id,
-  periodId: subject.period_id,
-  name: subject.name,
-  teacher: subject.teacher,
-  color: subject.color,
-  startDate: subject.start_date.toISOString().slice(0, 10) ?? null,
-  endDate: subject.end_date.toISOString().slice(0, 10) ?? null,
-});
+export function normalizeSubjectFromDB(dbSubject) {
+  if (!dbSubject) return null;
+
+  return {
+    id: dbSubject.id,
+    periodId: dbSubject.period_id,
+    name: dbSubject.name?.trim() || '',
+    teacher: dbSubject.teacher?.trim() || null,
+    color: dbSubject.color?.trim() || '#EF4444',
+    startDate: dbSubject.start_date 
+      ? new Date(dbSubject.start_date).toISOString().slice(0, 10) 
+      : null,
+    endDate: dbSubject.end_date 
+      ? new Date(dbSubject.end_date).toISOString().slice(0, 10) 
+      : null,
+    createdAt: dbSubject.created_at || null,
+    updatedAt: dbSubject.updated_at || null
+  };
+}
+
+// Normalize an array of subjects
+export function normalizeSubjectsFromDB(dbSubjects) {
+  if (!Array.isArray(dbSubjects)) return [];
+  return dbSubjects.map(normalizeSubjectFromDB);
+}

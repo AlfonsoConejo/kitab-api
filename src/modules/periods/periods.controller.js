@@ -1,7 +1,7 @@
 import { pool } from "../../config/db.js"
 import { assertPeriodOwnership, insertPeriod, readPeriodsByUser, deletePeriodDB, updatePeriodDB } from "../../services/periodService.js";
 import { normalizeAndValidatePeriod, normalizePeriodFromDB } from "../../validators/periodValidator.js";
-import { normalizeAndValidateSubject, normalizeSubject} from "../../validators/subjectValidator.js";
+import { normalizeAndValidateSubject, normalizeSubjectToDB, normalizeSubjectFromDB, normalizeSubjectsFromDB} from "../../validators/subjectValidator.js";
 import { insertSubject, assertSubjectOwnership, readSubjectsByPeriod } from "../../services/subjectServices.js";
 import { normalizeAndValidateClasses } from "../../validators/classValidator.js";
 import { insertClasses, readClassesByPeriod } from "../../services/classService.js";
@@ -325,10 +325,19 @@ export const updatePeriod = async (req, res) => {
   }
 };
 
-export const getPeriodSubjects = async (req, res) => {
+export const getSubjectsByPeriod = async (req, res) => {
+
+  // Verify authentication
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: "Usuario no autenticado"
+    });
+  }
 
   const { periodId } = req.params;
-  const userId = req.user.id;
+
   const parsedPeriodId = Number(periodId);
 
   // Validate period id
@@ -348,18 +357,20 @@ export const getPeriodSubjects = async (req, res) => {
 
     const subjects = await readSubjectsByPeriod(parsedPeriodId, client);
 
+    const subjectsForFrontend = normalizeSubjectsFromDB(subjects);
+
     return res.status(200).json({
       success: true,
-      data: subjects,
+      data: subjectsForFrontend
     });
 
   } catch (error) {
-    console.error("Error al obtener las materias:", error);
+    console.error("Error en getSubjectsByPeriod:", error);
 
-    if (error.status === 404 && error.code === "PERIOD_NOT_FOUND") {
+    if (error.code === "PERIOD_NOT_FOUND") {
       return res.status(404).json({
         success: false,
-        message: "Periodo no encontrado."
+        message: error.message
       });
     }
 
