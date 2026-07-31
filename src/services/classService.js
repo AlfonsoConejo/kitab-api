@@ -1,24 +1,25 @@
 import { pool } from "../config/db.js";
 
 export const insertClasses = async (
-  client,
+  client = pool,
   subjectId,
-  normalizedClasses
+  normalizedClasses  // ← Ya está en snake_case
 ) => {
-
+  const db = client || pool;
   const insertedClasses = [];
 
   for (const classItem of normalizedClasses) {
+    // ✅ Desestructurar en snake_case
     const {
       days,
       type,
       mode,
       classroom,
-      startTime,
-      endTime,
+      start_time,  // ← snake_case
+      end_time,    // ← snake_case
     } = classItem;
 
-    const result = await client.query(
+    const result = await db.query(
       `INSERT INTO classes
       (subject_id, days, start_time, end_time, mode, classroom, type)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -26,8 +27,8 @@ export const insertClasses = async (
       [
         subjectId,
         days,
-        startTime,
-        endTime,
+        start_time,  // ← snake_case
+        end_time,    // ← snake_case
         mode,
         classroom,
         type,

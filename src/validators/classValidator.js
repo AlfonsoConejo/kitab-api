@@ -2,9 +2,16 @@ const VALID_TYPES  = ["theory", "laboratory", "workshop"];
 const VALID_MODES  = ["onsite", "online"];
 const TIME_REGEX  = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
+const throwValidationError = (message) => {
+  const error = new Error(message);
+  error.status = 400;
+  error.name = 'ValidationError';
+  throw error;
+};
+
 export const normalizeAndValidateClasses = (classes) => {
 
-  const normalized = classes.map(normalizeClassInput);
+  const normalized = classes.map(normalizeClassToDB);
 
   validateClasses(normalized);
 
@@ -78,12 +85,6 @@ export const validateClasses = (classes) => {
     }
   }
 }
-
-const throwValidationError = (message) => {
-  const error = new Error(message);
-  error.status = 400;
-  throw error;
-};
 
 // Normalize data coming from the frontend
 export function normalizeClassToDB(frontData, forUpdate = false) {

@@ -1,6 +1,6 @@
 import { pool } from "../../config/db.js"
 import { assertPeriodOwnership, insertPeriod, readPeriodsByUser, deletePeriodDB, updatePeriodDB } from "../../services/periodService.js";
-import { normalizeAndValidatePeriod, normalizePeriodFromDB } from "../../validators/periodValidator.js";
+import { normalizeAndValidatePeriod, normalizePeriodFromDB, normalizePeriodsFromDB } from "../../validators/periodValidator.js";
 import { normalizeAndValidateSubject, normalizeSubjectToDB, normalizeSubjectFromDB, normalizeSubjectsFromDB} from "../../validators/subjectValidator.js";
 import { insertSubject, assertSubjectOwnership, readSubjectsByPeriod } from "../../services/subjectServices.js";
 import { normalizeAndValidateClasses, normalizeClassesFromDB } from "../../validators/classValidator.js";
@@ -85,7 +85,7 @@ export const getPeriods = async (req, res) => {
     const periodsRaw = await readPeriodsByUser(userId, client);
 
     // Normalize for frontend
-    const periodsForFrontend = periodsRaw.map(normalizePeriodFromDB);
+    const periodsForFrontend = normalizePeriodsFromDB(periodsRaw);
 
     return res.status(200).json({
       success: true,
@@ -446,12 +446,16 @@ export const getClassesByPeriod = async (req, res) => {
 }
 
 export const createSubject = async (req, res) => {
+  // Verify authentication
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: "Usuario no autenticado"
+    });
+  }
+
   const { periodId } = req.params;
-  const userId = req.user.id;
-  const {
-    classes = [],
-    ...subjectData
-  } = req.body;
 
   const parsedPeriodId = Number(periodId);
 
@@ -462,6 +466,11 @@ export const createSubject = async (req, res) => {
       message: "El ID del período no es válido."
     });
   }
+
+  const {
+    classes = [],
+    ...subjectData
+  } = req.body;
 
   let client;
   let transactionStarted = false;
@@ -478,22 +487,28 @@ export const createSubject = async (req, res) => {
     // Normalize and validate subject
     const normalizedSubject = normalizeAndValidateSubject(subjectData, period);
 
-    //Insert subject on DB
+    // Insert subject on DB
     const createdSubject  = await insertSubject(parsedPeriodId, normalizedSubject, client);
 
-    let createdClasses = [];
+    // Normalize subject for frontend
+    const subjectForFrontend = normalizeSubjectFromDB(createdSubject);
+
+    let classesForFrontend;
 
     // It there are classes
     if(classes.length > 0){
       // Normalize and validate classes
       const normalizedClasses = normalizeAndValidateClasses(classes);
 
+      // Normalize subject for frontend
+      classesForFrontend = normalizeClassesFromDB(normalizedClasses);
+
       // Insert classes on DB
-      createdClasses =
-        await insertClasses(
-          client,
-          createdSubject.id,
-          normalizedClasses);
+      await insertClasses(
+        client,
+        createdSubject.id,
+        normalizedClasses
+      );
     }
 
     await client.query("COMMIT");
@@ -502,8 +517,8 @@ export const createSubject = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "Materia creada correctamente.",
-      subject: createdSubject,
-      classes: createdClasses
+      subject: subjectForFrontend,
+      classes: classesForFrontend
     });
 
   } catch (error) {
@@ -513,17 +528,18 @@ export const createSubject = async (req, res) => {
       await client.query("ROLLBACK");
     }
 
-    if (error.status === 404 && error.code === "PERIOD_NOT_FOUND") {
+    if (error.code === "PERIOD_NOT_FOUND") {
       return res.status(404).json({
         success: false,
-        message: "Periodo no encontrado."
+        message: error.message
       });
     }
 
-    if (error.status === 400) {
+    // Validation error
+    if (error.name === 'ValidationError') {
       return res.status(400).json({
         success: false,
-        message: error.message,
+        message: error.message
       });
     }
 
@@ -539,7 +555,7 @@ export const createSubject = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Error en el servidor."
+      message: "Error interno del servidor."
     });
   } finally {
     if (client) {

@@ -94,3 +94,8 @@ export function normalizePeriodToDB(frontData, forUpdate = false) {
 
   return result;
 }
+
+export function normalizePeriodsFromDB(dbPeriods) {
+  if (!Array.isArray(dbPeriods)) return [];
+  return dbPeriods.map(normalizePeriodFromDB);
+}

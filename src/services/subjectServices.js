@@ -64,25 +64,26 @@ export const readSubject = async (subjectId, client = pool) => {
   return result.rows[0];
 }
 
-export const insertSubject = async (periodId, normalizedSubject, client) => {
+export const insertSubject = async (periodId, subject, client = pool) => {
+  const db = client || pool;
   const {
     name,
     teacher,
     color,
-    startDate,
-    endDate
-  } = normalizedSubject;
+    start_date,
+    end_date  
+  } = subject;
 
-  const result = await client.query(
+  const result = await db.query(
     `INSERT INTO subjects
     (period_id, name, teacher, color, start_date, end_date)
     VALUES ($1, $2, $3, $4, $5, $6)
     RETURNING id, period_id, name, teacher, color, start_date, end_date`,
-    [periodId, name, teacher, color, startDate, endDate]
+    [periodId, name, teacher, color, start_date, end_date]
   );
 
   return result.rows[0];
-}
+};
 
 export const deleteSubject = async(subjectId, client) => {
   const { rowCount } = await client.query(
