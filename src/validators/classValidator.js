@@ -85,23 +85,49 @@ const throwValidationError = (message) => {
   throw error;
 };
 
-export const normalizeClassInput = (classItem) => ({
-  days: classItem.days,
-  type: classItem.type?.trim(),
-  mode: classItem.mode?.trim(),
-  classroom: classItem.classroom?.trim() || null,
-  startTime: classItem.startTime?.trim(),
-  endTime: classItem.endTime?.trim(),
-});
+// Normalize data coming from the frontend
+export function normalizeClassToDB(frontData, forUpdate = false) {
+  if (!frontData) return null;
+
+  const result = {
+    subject_id: frontData.subjectId || null,
+    days: frontData.days || [],
+    start_time: frontData.startTime || null,
+    end_time: frontData.endTime || null,
+    mode: frontData.mode?.trim() || null,
+    classroom: frontData.classroom?.trim() || null,
+    type: frontData.type?.trim() || null
+  };
+
+  // Para UPDATE, eliminar campos undefined
+  if (forUpdate) {
+    Object.keys(result).forEach(key => {
+      if (result[key] === undefined) delete result[key];
+    });
+  }
+
+  return result;
+}
 
 // Normalize object coming from the DataBase
-export const normalizeClass = (classItem) => ({
-  id: classItem.id,
-  subjectId: classItem.subject_id,
-  days: classItem.days,
-  type: classItem.type,
-  mode: classItem.mode,
-  classroom: classItem.classroom,
-  startTime: classItem.start_time,
-  endTime: classItem.end_time,
-});
+export function normalizeClassFromDB(dbClass) {
+  if (!dbClass) return null;
+
+  return {
+    id: dbClass.id,
+    subjectId: dbClass.subject_id,
+    subjectName: dbClass.subject_name,
+    days: dbClass.days || [],
+    startTime: dbClass.start_time,
+    endTime: dbClass.end_time,
+    mode: dbClass.mode || null,
+    classroom: dbClass.classroom || null,
+    type: dbClass.type || null
+  };
+}
+
+// Normalize array of classes coming from the database
+export function normalizeClassesFromDB(dbClasses) {
+  if (!Array.isArray(dbClasses)) return [];
+  return dbClasses.map(normalizeClassFromDB);
+}

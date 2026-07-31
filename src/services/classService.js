@@ -1,5 +1,4 @@
 import { pool } from "../config/db.js";
-import { normalizeClass } from "../validators/classValidator.js";
 
 export const insertClasses = async (
   client,
@@ -35,18 +34,20 @@ export const insertClasses = async (
       ]
     );
 
-    insertedClasses.push(normalizeClass(result.rows[0]));
+    insertedClasses.push(result.rows[0]);
   }
 
   return insertedClasses;
 };
 
-export const readClassesByPeriod = async (client, periodId) => {
-  const result = await client.query(
+export const readClassesByPeriod = async (periodId, client = pool) => {
+  const db = client || pool;
+  const result = await db.query(
     `
     SELECT
       c.id,
       c.subject_id,
+      s.name AS subject_name,
       c.days,
       c.start_time,
       c.end_time,
@@ -54,17 +55,15 @@ export const readClassesByPeriod = async (client, periodId) => {
       c.classroom,
       c.type
     FROM classes c
-    JOIN subjects s
-      ON c.subject_id = s.id
-    JOIN academic_periods p
-      ON s.period_id = p.id
+    JOIN subjects s ON c.subject_id = s.id
+    JOIN academic_periods p ON s.period_id = p.id
     WHERE p.id = $1
-    ORDER BY start_time ASC
+    ORDER BY s.name, c.start_time ASC  -- ← Ordenar por materia y hora
     `,
     [periodId]
   );
 
-  return result.rows.map(normalizeClass);
+  return result.rows;
 };
 
 export const readClassesBySubject = async (subjectId, client) => {
@@ -86,5 +85,5 @@ export const readClassesBySubject = async (subjectId, client) => {
     [subjectId]
   );
 
-  return result.rows.map(normalizeClass);
+  return result.rows;
 };

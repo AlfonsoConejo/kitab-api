@@ -3,7 +3,7 @@ import { assertPeriodOwnership, insertPeriod, readPeriodsByUser, deletePeriodDB,
 import { normalizeAndValidatePeriod, normalizePeriodFromDB } from "../../validators/periodValidator.js";
 import { normalizeAndValidateSubject, normalizeSubjectToDB, normalizeSubjectFromDB, normalizeSubjectsFromDB} from "../../validators/subjectValidator.js";
 import { insertSubject, assertSubjectOwnership, readSubjectsByPeriod } from "../../services/subjectServices.js";
-import { normalizeAndValidateClasses } from "../../validators/classValidator.js";
+import { normalizeAndValidateClasses, normalizeClassesFromDB } from "../../validators/classValidator.js";
 import { insertClasses, readClassesByPeriod } from "../../services/classService.js";
 
 export const createPeriod = async (req, res) => {
@@ -385,6 +385,66 @@ export const getSubjectsByPeriod = async (req, res) => {
   }
 };
 
+export const getClassesByPeriod = async (req, res) => {
+  // Verify authentication
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: "Usuario no autenticado"
+    });
+  }
+
+  const { periodId } = req.params;
+
+  const parsedPeriodId = Number(periodId);
+
+  // Validate period id
+  if (!Number.isInteger(parsedPeriodId) || parsedPeriodId <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: "El ID del período no es válido."
+    });
+  }
+
+  let client;
+
+  try {
+    client = await pool.connect();
+
+    await assertPeriodOwnership(parsedPeriodId, userId, client);
+
+    // Get all classes from the period
+    const classes = await readClassesByPeriod(parsedPeriodId, client);
+
+    // Normalize data for frontend
+    const classesForFrontend = normalizeClassesFromDB(classes);
+
+    return res.status(200).json({
+      success: true,
+      data: classesForFrontend
+    });
+  } catch (error) {
+    console.error("Error en getClassesByPeriod:", error);
+
+    if (error.code === "PERIOD_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Error interno del servidor."
+    });
+  } finally {
+    if (client) {
+      client.release();
+    }
+  }
+}
+
 export const createSubject = async (req, res) => {
   const { periodId } = req.params;
   const userId = req.user.id;
@@ -480,56 +540,6 @@ export const createSubject = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Error en el servidor."
-    });
-  } finally {
-    if (client) {
-      client.release();
-    }
-  }
-}
-
-export const getClasses = async (req, res) => {
-
-  const { periodId } = req.params;
-  const userId = req.user.id;
-
-  const parsedPeriodId = Number(periodId);
-
-  // Validate period id
-  if (!Number.isInteger(parsedPeriodId) || parsedPeriodId <= 0) {
-    return res.status(400).json({
-      success: false,
-      message: "El ID del período no es válido."
-    });
-  }
-
-  let client;
-
-  try {
-    client = await pool.connect();
-
-    await assertPeriodOwnership(parsedPeriodId, userId, client);
-
-    // Get all classes from the period
-    const classes = await readClassesByPeriod(client, parsedPeriodId);
-
-    return res.status(200).json({
-      success: true,
-      data: classes
-    });
-  } catch (error) {
-    console.error(error);
-
-    if (error.status === 404 && error.code === "PERIOD_NOT_FOUND") {
-      return res.status(404).json({
-        success: false,
-        message: "Periodo no encontrado."
-      });
-    }
-
-    return res.status(500).json({
-      success: false,
-      message: "Error interno del servidor."
     });
   } finally {
     if (client) {
