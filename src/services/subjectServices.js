@@ -2,7 +2,7 @@ import { pool } from "../config/db.js"
 
 export const assertSubjectOwnership = async (subjectId, userId, client = pool) => {
   const db = client || pool;
-  
+
   const result = await db.query(
     `
     SELECT id, period_id, name, teacher, color, created_at, updated_at, start_date, end_date
@@ -46,7 +46,8 @@ export const readSubjectsByPeriod = async (periodId, client = pool) => {
 };
 
 export const readSubject = async (subjectId, client = pool) => {
-  const result = await client.query(
+  const db = client || pool;
+  const result = await db.query(
     `SELECT
       id,
       period_id,

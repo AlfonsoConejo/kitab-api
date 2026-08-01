@@ -67,8 +67,9 @@ export const readClassesByPeriod = async (periodId, client = pool) => {
   return result.rows;
 };
 
-export const readClassesBySubject = async (subjectId, client) => {
-  const result = await client.query(
+export const readClassesBySubject = async (subjectId, client = pool) => {
+  const db = client || pool;
+  const result = await db.query(
     `
     SELECT
       id,

@@ -7,10 +7,9 @@ const router = Router();
 router.route("/:subjectId")
    .delete(authMiddleware, deleteSubject)
 
-router.route("/:subjectId/classes")
-   .post(authMiddleware, createClasses)
-
 router.route("/:subjectId/with-classes")
    .get(authMiddleware, getSubjectWithClasses)
 
+router.route("/:subjectId/classes")
+   .post(authMiddleware, createClasses)
 export default router;

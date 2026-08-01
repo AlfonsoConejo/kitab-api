@@ -1,8 +1,8 @@
 import { pool } from "../../config/db.js"
-import { readClassesBySubject } from "../../services/classService.js";
-import { insertClasses } from "../../services/classService.js";
+import { readClassesBySubject, insertClasses } from "../../services/classService.js";
 import { normalizeAndValidateClasses, normalizeClassesFromDB } from "../../validators/classValidator.js";
 import { assertSubjectOwnership, deleteSubjectDB, readSubject } from "../../services/subjectServices.js";
+import { normalizeSubjectFromDB } from "../../validators/subjectValidator.js";
 
 // De este endpoint aún no estoy seguro de cómo se utilizará porque al momento de crear una materia, 
 // se crean sus clases al mismo tiempo. Pero lo dejo por si acaso.
@@ -167,11 +167,18 @@ export const deleteSubject = async (req, res) => {
 }
 
 export const getSubjectWithClasses = async (req, res) => {
-
-  const userId = req.user.id;
-  const {subjectId} = req.params;
+  // Verify user authentication
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: "Usuario no autenticado"
+    });
+  }
 
   // Validate subjectId
+  const {subjectId} = req.params;
+
   const parsedSubjectId = Number(subjectId);
 
   if (!Number.isInteger(parsedSubjectId) || parsedSubjectId <= 0) {
@@ -181,7 +188,7 @@ export const getSubjectWithClasses = async (req, res) => {
     });
   }
 
-  let client
+  let client;
 
   try{
     client = await pool.connect();
@@ -195,12 +202,18 @@ export const getSubjectWithClasses = async (req, res) => {
       readClassesBySubject(parsedSubjectId, client),
     ]);
 
+    // Normalize subject for frontend
+    const subjectForFrontend = normalizeSubjectFromDB(subject);
+
+    // Normalize classes for frontend
+    const classesForFrontend = normalizeClassesFromDB(classes);
+
     // Subject retrieved successfully
     return res.status(200).json({
       success: true,
       data: {
-        ...subject,
-        classes,
+        ...subjectForFrontend,
+        classes: classesForFrontend,
       },
     });
   } catch (error) {
@@ -209,7 +222,7 @@ export const getSubjectWithClasses = async (req, res) => {
 		if (error.code === "SUBJECT_NOT_FOUND") {
       return res.status(404).json({
         success: false,
-        message: "La materia no fue encontrada."
+        message: error.message
       });
     }
 
