@@ -1,17 +1,35 @@
 import { pool } from "../../config/db.js"
 import { readClassesBySubject } from "../../services/classService.js";
 import { insertClasses } from "../../services/classService.js";
-import { normalizeAndValidateClasses } from "../../validators/classValidator.js";
+import { normalizeAndValidateClasses, normalizeClassesFromDB } from "../../validators/classValidator.js";
 import { assertSubjectOwnership, deleteSubjectDB, readSubject } from "../../services/subjectServices.js";
 
+// De este endpoint aún no estoy seguro de cómo se utilizará porque al momento de crear una materia, 
+// se crean sus clases al mismo tiempo. Pero lo dejo por si acaso.
 export const createClasses = async (req, res) => {
 
   const { classes } = req.body;
-  const {subjectId} = req.params;
-  const userId = req.user.id;
-  let transactionStarted = false;
+  
+  // Validate that classes is an array and not empty
+  if (!classes || !Array.isArray(classes) || classes.length === 0) {
+  return res.status(400).json({
+    success: false,
+    message: "Debes enviar al menos una clase."
+  });
+}
+
+  // Verify user authentication
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: "Usuario no autenticado"
+    });
+  }
 
   // Validate subjectId
+  const {subjectId} = req.params;
+
   const parsedSubjectId = Number(subjectId);
 
   if (!Number.isInteger(parsedSubjectId) || parsedSubjectId <= 0) {
@@ -21,10 +39,14 @@ export const createClasses = async (req, res) => {
     });
   }
 
-  let client
+  let transactionStarted = false;
+  let client;
 
   try{
     client = await pool.connect();
+
+    await client.query("BEGIN");
+    transactionStarted = true;
 
     // Verifiy subject ownership
     await assertSubjectOwnership(parsedSubjectId, userId, client);
@@ -34,9 +56,6 @@ export const createClasses = async (req, res) => {
 
     // En el futuro acá estará el algoritmo de detección de choques (primero en local y luego en la base de datos).
 
-    await client.query("BEGIN");
-    transactionStarted = true;
-
     // Insert classes on DB
     const insertedClasses = await insertClasses(
       client,
@@ -44,13 +63,16 @@ export const createClasses = async (req, res) => {
       normalizedClasses
     );
 
+    // Normalize classes for frontend
+    const classesForFrontend = normalizeClassesFromDB(insertedClasses);
+
     await client.query("COMMIT");
     transactionStarted = false;
 
     return res.status(201).json({
       success: true,
       message: "Clases creadas correctamente.",
-      classes: insertedClasses
+      classes: classesForFrontend
     });
 
   } catch (error) {
@@ -60,14 +82,14 @@ export const createClasses = async (req, res) => {
       await client.query("ROLLBACK");
     }
 
-    if (error.code === 'SUBJECT_NOT_FOUND') {
-      return res.status(403).json({
+    if (error.code === "SUBJECT_NOT_FOUND") {
+      return res.status(404).json({
         success: false,
-        message: "La materia no fue encontrada."
+        message: error.message
       });
     }
 
-    if (error.status === 400) {
+    if (error.name === 'ValidationError') {
       return res.status(400).json({
         success: false,
         message: error.message,
