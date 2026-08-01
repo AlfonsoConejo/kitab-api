@@ -1,9 +1,9 @@
 import { pool } from "../config/db.js"
 
 export const assertSubjectOwnership = async (subjectId, userId, client) => {
-  const { rowCount } = await client.query(
+  const result = await client.query(
     `
-    SELECT 1
+    SELECT id, period_id, name, teacher, color, created_at, updated_at, start_date, end_date
     FROM subjects s
     JOIN academic_periods p ON s.period_id = p.id
     WHERE s.id = $1 AND p.user_id = $2
@@ -11,14 +11,15 @@ export const assertSubjectOwnership = async (subjectId, userId, client) => {
     [subjectId, userId]
   );
 
-  if (rowCount === 0) {
-    const error = new Error("SUBJECT_NOT_FOUND");
+  if (result.rowCount === 0) {
+    const error = new Error("La materia no existe o no te pertenece.");
     error.code = "SUBJECT_NOT_FOUND";
     error.status = 404;
+    error.name = "NotFoundError";
     throw error;
   }
 
-  return true;
+  return result.rows[0];
 };
 
 export const readSubjectsByPeriod = async (periodId, client = pool) => {
@@ -85,10 +86,22 @@ export const insertSubject = async (periodId, subject, client = pool) => {
   return result.rows[0];
 };
 
-export const deleteSubject = async(subjectId, client) => {
-  const { rowCount } = await client.query(
+export const deleteSubjectDB = async (subjectId, client = pool) => {
+  const db = client || pool;
+
+  const result = await db.query(
     `DELETE FROM subjects
-    WHERE id = $1`,
+    WHERE id = $1
+    RETURNING id`,
     [subjectId]
   );
-}
+
+  if (result.rowCount === 0) {
+    const error = new Error("La materia no existe");
+    error.code = "SUBJECT_NOT_FOUND";
+    error.status = 404;
+    throw error;
+  }
+
+  return result.rows[0];
+};

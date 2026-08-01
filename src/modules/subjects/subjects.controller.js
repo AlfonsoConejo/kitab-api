@@ -2,7 +2,7 @@ import { pool } from "../../config/db.js"
 import { readClassesBySubject } from "../../services/classService.js";
 import { insertClasses } from "../../services/classService.js";
 import { normalizeAndValidateClasses } from "../../validators/classValidator.js";
-import { assertSubjectOwnership, deleteSubject as deleteSubjectService, readSubject } from "../../services/subjectServices.js";
+import { assertSubjectOwnership, deleteSubjectDB, readSubject } from "../../services/subjectServices.js";
 
 export const createClasses = async (req, res) => {
 
@@ -86,12 +86,20 @@ export const createClasses = async (req, res) => {
 }
 
 export const deleteSubject = async (req, res) => {
-  const userId = req.user.id;
+  // Verify user authentication
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: "Usuario no autenticado"
+    });
+  }
+
   const { subjectId } = req.params;
 
-	const parsedSubjectId = Number(subjectId);
+  const parsedSubjectId = Number(subjectId);
 
-	// Validate subject id
+  // Validate subject id
   if (!Number.isInteger(parsedSubjectId) || parsedSubjectId <= 0) {
     return res.status(400).json({
       success: false,
@@ -108,7 +116,7 @@ export const deleteSubject = async (req, res) => {
 		 await assertSubjectOwnership(parsedSubjectId, userId, client)
 
 		// Delete subject
-		await deleteSubjectService(parsedSubjectId, client)
+		await deleteSubjectDB(parsedSubjectId, client)
 
 		// Subject deleted successfully
     return res.status(200).json({
@@ -116,12 +124,12 @@ export const deleteSubject = async (req, res) => {
       message: "Materia eliminada correctamente."
     });
 	} catch (error) {
-		console.error("Error al eliminar la materia:", error);
+		console.error("Error en deleteSubject:", error);
 
-		if (error.status === 404 && error.code === "SUBJECT_NOT_FOUND") {
+    if (error.code === "SUBJECT_NOT_FOUND") {
       return res.status(404).json({
         success: false,
-        message: "La materia no fue encontrada."
+        message: error.message
       });
     }
 

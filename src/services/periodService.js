@@ -55,7 +55,7 @@ export const deletePeriodDB = async (periodId, client = pool) => {
   const result = await db.query(
     `DELETE FROM academic_periods
     WHERE id = $1
-    RETURNING id`, // ← Confirma qué se eliminó
+    RETURNING id`,
     [periodId]
   );
 
