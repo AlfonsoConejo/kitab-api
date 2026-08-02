@@ -37,7 +37,7 @@ export const createPeriod = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error on createPeriod:", error);
+    console.error("Error on createPeriod: ", error);
 
     // Validation error
     if (error.name === 'ValidationError') {

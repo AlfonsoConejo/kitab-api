@@ -2,68 +2,70 @@ import { pool } from "../../config/db.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken"
 import crypto from "crypto";
+import { normalizeAndValidateUser, normalizeUserToDB, normalizeUserFromDB, normalizeUsersFromDB } from "../../validators/authValidator.js";
+import { insertUser, findUserByEmail } from "../../services/authService.js"; 
 
 // Definition of JWT cookie security
 const isProduction = process.env.NODE_ENV === "production";
 
 export const register = async (req, res) => {
+
+  let client;
+
   try {
-    let { firstName, lastName, email, password } = req.body;
+    client = await pool.connect();
 
-    firstName = firstName?.trim();
-    lastName = lastName?.trim();
-    email = email?.trim().toLowerCase();
+    // Normalize and validate user input
+    const normalizedUser = normalizeAndValidateUser(req.body);
 
-    // Validations
-    if (!firstName || !lastName || !email || !password) {
-      return res.status(400).json({
-        message: "Todos los campos son obligatorios."
+    const existingUser = await findUserByEmail(normalizedUser.email, client); 
+    
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: "El usuario ya existe"
       });
-    }
+    }   
+    
+    const hashedPassword = await bcrypt.hash(normalizedUser.password, 10);
 
-    if (lastName.length < 2) {
-      return res.status(400).json({
-        message: "Last name must contain at least 2 characters"
-      });
-    }
+    const result = await insertUser({ ...normalizedUser, password_hash: hashedPassword }, client);
 
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      return res.status(400).json({
-        message: "Invalid email"
-      });
-    }
+    const userForFrontend = normalizeUserFromDB(result);
 
-    if (password.length < 6) {
-      return res.status(400).json({
-        message: "La contraseña debe contener al menos 6 caracteres."
-      });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const result = await pool.query(
-      `INSERT INTO users (first_name, last_name, email, password_hash)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, first_name, last_name, email`,
-      [firstName, lastName, email, hashedPassword]
-    );
-
-    res.status(201).json({
-      message: "User created successfully",
-      user: result.rows[0]
+    return res.status(201).json({
+      success: true,
+      message: "Usuario creado correctamente",
+      user: userForFrontend
     });
 
   } catch (error) {
+    console.error("Error on register:", error);
+
+    // Validation error
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+    // Unique constraint violation (user already exists)
     if (error.code === '23505') {
       return res.status(409).json({
+        success: false,
         message: "El usuario ya existe"
       });
     }
 
-    res.status(500).json({
-      message: "Server error",
-      error: error.message
+    return res.status(500).json({
+      success: false,
+      message: "Error interno del servidor"
     });
+
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 };
 
