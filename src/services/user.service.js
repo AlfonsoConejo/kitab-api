@@ -41,3 +41,24 @@ export const insertUser = async (user, client = pool) => {
 
   return result.rows[0];
 };
+
+export const findUserById = async (userId, client = pool) => {
+  const db = client || pool;
+
+  const result = await db.query(
+    `SELECT 
+      id, 
+      first_name, 
+      last_name, 
+      email, 
+      created_at, 
+      updated_at
+    FROM users
+    WHERE id = $1`,
+    [userId]
+  );
+
+  return result.rows[0] || null;
+};
+
+export const updateUser = async (id, data) => { something }

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { createPeriod, getPeriods, getPeriod, updatePeriod, deletePeriod, getSubjectsByPeriod, createSubject, getClassesByPeriod } from "../periods/periods.controller.js";
-import { authMiddleware } from "../../middleware/authMiddleware.js";
+import { authMiddleware } from "../../middleware/auth.middleware.js";
 
 const router = Router();
 

@@ -1,10 +1,10 @@
 import { pool } from "../../config/db.js"
-import { assertPeriodOwnership, insertPeriod, readPeriodsByUser, deletePeriodDB, updatePeriodDB } from "../../services/periodService.js";
-import { normalizeAndValidatePeriod, normalizePeriodFromDB, normalizePeriodsFromDB } from "../../validators/periodValidator.js";
-import { normalizeAndValidateSubject, normalizeSubjectToDB, normalizeSubjectFromDB, normalizeSubjectsFromDB} from "../../validators/subjectValidator.js";
-import { insertSubject, assertSubjectOwnership, readSubjectsByPeriod } from "../../services/subjectServices.js";
-import { normalizeAndValidateClasses, normalizeClassesFromDB } from "../../validators/classValidator.js";
-import { insertClasses, readClassesByPeriod } from "../../services/classService.js";
+import { assertPeriodOwnership, insertPeriod, readPeriodsByUser, deletePeriodDB, updatePeriodDB } from "../../services/period.service.js";
+import { normalizeAndValidatePeriod, normalizePeriodFromDB, normalizePeriodsFromDB } from "../../validators/period.validator.js";
+import { normalizeAndValidateSubject, normalizeSubjectToDB, normalizeSubjectFromDB, normalizeSubjectsFromDB} from "../../validators/subject.validator.js";
+import { insertSubject, assertSubjectOwnership, readSubjectsByPeriod } from "../../services/subject.service.js";
+import { normalizeAndValidateClasses, normalizeClassesFromDB } from "../../validators/class.validator.js";
+import { insertClasses, readClassesByPeriod } from "../../services/class.service.js";
 
 export const createPeriod = async (req, res) => {
 

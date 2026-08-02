@@ -1,8 +1,8 @@
 import { pool } from "../../config/db.js"
-import { readClassesBySubject, insertClasses } from "../../services/classService.js";
-import { normalizeAndValidateClasses, normalizeClassesFromDB } from "../../validators/classValidator.js";
-import { assertSubjectOwnership, deleteSubjectDB, readSubject } from "../../services/subjectServices.js";
-import { normalizeSubjectFromDB } from "../../validators/subjectValidator.js";
+import { readClassesBySubject, insertClasses } from "../../services/class.service.js";
+import { normalizeAndValidateClasses, normalizeClassesFromDB } from "../../validators/class.validator.js";
+import { assertSubjectOwnership, deleteSubjectDB, readSubject } from "../../services/subject.service.js";
+import { normalizeSubjectFromDB } from "../../validators/subject.validator.js";
 
 // De este endpoint aún no estoy seguro de cómo se utilizará porque al momento de crear una materia, 
 // se crean sus clases al mismo tiempo. Pero lo dejo por si acaso.

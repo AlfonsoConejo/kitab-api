@@ -2,8 +2,10 @@ import { pool } from "../../config/db.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken"
 import crypto from "crypto";
-import { normalizeAndValidateUser, normalizeUserToDB, normalizeUserFromDB, normalizeUsersFromDB } from "../../validators/authValidator.js";
-import { insertUser, findUserByEmail } from "../../services/authService.js"; 
+import { normalizeAndValidateUser, normalizeUserToDB, normalizeUserFromDB, normalizeUsersFromDB } from "../../validators/auth.validator.js";
+import { insertUser, findUserByEmail, findUserById } from "../../services/user.service.js"; 
+import { loginUser } from "../../services/auth.service.js";
+import { verifyAccessToken } from "../../services/token.service.js";
 
 // Definition of JWT cookie security
 const isProduction = process.env.NODE_ENV === "production";
@@ -70,166 +72,79 @@ export const register = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-
   const client = await pool.connect();
 
   try {
-    let { email, password } = req.body;
+    const { email, password } = req.body;
 
-    email = email?.trim().toLowerCase();
-
-    //Validations
-    if (!email || !password) {
+    // Validation: Check if email and password are provided
+    if (!email?.trim() || !password) {
       return res.status(400).json({
-        message: "Todos los campos son obligatorios."
+        success: false,
+        message: 'Todos los campos son obligatorios'
       });
     }
 
-    //Verify if user exists on database
-    const result = await client.query(
-      `SELECT id, email, password_hash
-       FROM users
-       WHERE email = $1`,
-      [email]
-    );
+    await client.query('BEGIN');
 
-    if (result.rows.length === 0){
-      return res.status(401).json({message: "Usuario o contraseña incorrectos."})
-    }
-
-    const user = result.rows[0];
-    
-    // Comparing passwords with bcrypt
-    const isMatch = await bcrypt.compare(
+    // Login user and create session
+    const { user, session, tokens } = await loginUser(
+      email.trim().toLowerCase(),
       password,
-      user.password_hash
+      req,
+      client
     );
 
-    if (!isMatch) {
-      return res.status(401).json({
-        message: "Usuario o contraseña incorrectos."
-      });
-    }
+    await client.query('COMMIT');
 
-    const payload = {
-      id: user.id,
-      email: user.email
-    }
+    // Normalize user data for frontend
+    const userForFrontend = normalizeUserFromDB(user);
 
-    // Create JWT access token
-    const accessToken = jwt.sign(
-      payload,
-      process.env.JWT_ACCESS_SECRET,
-      {expiresIn: "15m"}
-    );
-
-    // Create JWT refresh token
-    const refreshToken = jwt.sign(
-      payload,
-      process.env.JWT_REFRESH_SECRET,
-      {expiresIn: "7d"}
-    );
-
-    // Decode refresh token
-    const decodedToken = jwt.decode(refreshToken);
-    if(!decodedToken?.exp){
-      throw new Error("Invalid refresh token");
-    }
-
-    // Hash refresh token
-    const hashedRefreshToken = hashToken(refreshToken);
-
-    const userAgent = req.get("User-Agent");
-    const ipAddress = getClientIp(req);
-
-    // Get user location from IP
-    const location = await getLocationFromIp(ipAddress);
-
-    await client.query("BEGIN");
-
-    //Save Session to DB
-    const sessionResult = await client.query(
-    `
-      INSERT INTO sessions (
-        user_id,
-        user_agent,
-        ip_address,
-        city,
-        state,
-        country
-      )
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING id
-    `,
-      [
-        user.id,
-        userAgent,
-        ipAddress,
-        location.city,
-        location.state,
-        location.country
-      ]
-    );
-
-    const sessionId = sessionResult.rows[0].id;
-
-    // Save Refresh Token to DB
-    await client.query(
-    `
-      INSERT INTO refresh_tokens (
-        session_id,
-        token_hash,
-        expires_at
-      )
-      VALUES ($1, $2, $3)
-    `,
-      [
-        sessionId,
-        hashedRefreshToken,
-        new Date(decodedToken.exp * 1000)
-      ]
-    );  
-
-    await client.query("COMMIT");
-
-    console.log("SET COOKIE CONFIG:");
-    console.log({
+    // Set cookies with appropriate security settings
+    res.cookie('accessToken', tokens.accessToken, {
       httpOnly: true,
-      sameSite: isProduction ? "none" : "lax",
-      secure: isProduction
+      sameSite: isProduction ? 'none' : 'lax',
+      secure: isProduction,
+      maxAge: 15 * 60 * 1000 // 15 minutos
     });
 
-    return res
-    .cookie("accessToken", accessToken, {
+    res.cookie('refreshToken', tokens.refreshToken, {
       httpOnly: true,
-      sameSite: isProduction ? "none" : "lax",
+      sameSite: isProduction ? 'none' : 'lax',
       secure: isProduction,
-      maxAge: 1000 * 60 * 15 // 15 minutes
-    })
-    .cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      sameSite: isProduction ? "none" : "lax",
-      secure: isProduction,
-      maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
-    })
-    .status(200)
-    .json({
-      message: "Login exitoso",
-      user: {
-        id: user.id,
-        email: user.email
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 días
+    });
+
+    // Return response with user and session data
+    return res.status(200).json({
+      success: true,
+      message: 'Login exitoso',
+      data: {
+        user: userForFrontend,
+        session: {
+          id: session.id
+        }
       }
     });
 
   } catch (error) {
-    try {
-      await client.query("ROLLBACK");
-    } catch {}
+    await client.query('ROLLBACK');
 
-    res.status(500).json({
-      message: "Server error",
-      ...(!isProduction && {error: error.message})
+    console.error('Error en login: ', error);
+
+    // Handle specific error cases
+    if (error.code === 'INVALID_CREDENTIALS') {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuario o contraseña incorrectos'
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
     });
+
   } finally {
     client.release();
   }
@@ -237,47 +152,63 @@ export const login = async (req, res) => {
 
 export const me = async (req, res) => {
   try {
-    // Log incoming cookies and parsed cookies for debugging
-    console.log("incoming cookies:", req.headers.cookie);
-    console.log("parsed cookies:", req.cookies);
+    const accessToken = req.cookies?.accessToken;
 
-    const accessToken = req.cookies.accessToken;
-
-    if (!accessToken) return res.status(401).json({message: "Token obligatorio"})
-
-    const data = jwt.verify(accessToken, process.env.JWT_ACCESS_SECRET);
-
-    // Look for user in DB
-    const result = await pool.query(
-      `SELECT
-        id,
-        first_name,
-        last_name,
-        email,
-        created_at,
-        updated_at
-      FROM users
-      WHERE id = $1`,
-      [data.id]
-    );
-
-    // Verify existance
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        message: "Usuario no encontrado"
+    if (!accessToken) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token de acceso requerido'
       });
     }
 
-    // Get user
-    const user = result.rows[0];
+    let decoded;
+    try {
+      decoded = verifyAccessToken(accessToken);
+    } catch (error) {
+      if (error.code === 'TOKEN_EXPIRED') {
+        return res.status(401).json({
+          success: false,
+          message: 'Token expirado. Por favor, inicia sesión nuevamente.'
+        });
+      }
+      
+      if (error.code === 'INVALID_TOKEN') {
+        return res.status(401).json({
+          success: false,
+          message: 'Token inválido'
+        });
+      }
+
+      return res.status(401).json({
+        success: false,
+        message: 'Error de autenticación'
+      });
+    }
+
+    const user = await findUserById(decoded.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    const userForFrontend = normalizeUserFromDB(user);
 
     return res.status(200).json({
-      user
+      success: true,
+      data: {
+        user: userForFrontend
+      }
     });
 
   } catch (error) {
-    res.status(401).json({
-      message: "Invalid or expired access token"
+    console.error('Error en /me:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
     });
   }
 };
@@ -635,67 +566,4 @@ const cookieOptions = {
   sameSite: isProduction ? "none" : "lax",
   secure: isProduction,
   path: "/"
-};
-
-const hashToken = (token) => {
-  return crypto
-    .createHash("sha256")
-    .update(token)
-    .digest("hex");
-};
-
-const getClientIp = (req) => {
-  return req.ip.replace("::ffff:", "");
-};
-
-const getLocationFromIp = async (ipAddress) => {
-  if (!ipAddress) {
-    return {
-      city: null,
-      state: null,
-      country: null,
-    };
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-
-  try {
-    const response = await fetch(
-      `https://api.ipquery.io/${ipAddress}`,
-      {
-        signal: controller.signal,
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP Error ${response.status}`);
-    }
-
-    console.log("Status:", response.status);
-
-    const data = await response.json();
-
-    if (data.error) {
-      throw new Error(data.reason);
-    }
-
-    console.log("IP Query response:", data);
-
-    return {
-      city: data.location.city ?? null,
-      state: data.location.state ?? null,
-      country: data.location.country ?? null,
-    };
-  } catch (error) {
-    console.error("IP Query error:", error);
-
-    return {
-      city: null,
-      state: null,
-      country: null,
-    };
-  } finally {
-    clearTimeout(timeout);
-  }
 };
