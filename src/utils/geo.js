@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const getLocationFromIp = async (ip) => {
-  // ✅ Si es localhost o IP privada, retornar null
+  // If the IP is localhost or private, return nulls
   if (!ip || ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.')) {
     return { city: null, state: null, country: null };
   }
@@ -11,17 +11,17 @@ export const getLocationFromIp = async (ip) => {
       timeout: 5000 // 5 segundos
     });
 
-    // ✅ Verificar que la respuesta sea exitosa
+    // Verify if the response is valid and contains the expected data
     if (response.status === 200 && response.data) {
       const data = response.data;
 
-      // ✅ Verificar si hay error en la respuesta
+      // Verify if the API returned an error
       if (data.error) {
         console.warn('Error en ipquery.io:', data.reason || data.error);
         return { city: null, state: null, country: null };
       }
 
-      // ✅ Extraer ubicación de la estructura de ipquery.io
+      // Extract location from the ipquery.io structure
       return {
         city: data.location?.city || null,
         state: data.location?.state || null,
@@ -32,7 +32,7 @@ export const getLocationFromIp = async (ip) => {
     return { city: null, state: null, country: null };
 
   } catch (error) {
-    // ✅ Manejar errores de axios (timeout, red, etc.)
+    // Verify if the API returned an error
     if (error.code === 'ECONNABORTED') {
       console.warn('Timeout obteniendo ubicación desde IP');
     } else if (error.response) {

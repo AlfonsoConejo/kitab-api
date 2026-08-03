@@ -456,7 +456,7 @@ export const logoutAll = async (req, res) => {
       await client.query('ROLLBACK');
     } catch {}
 
-    // ✅ Limpiar cookies incluso en error
+    // Verify if the API returned an error
     res.clearCookie('accessToken', cookieOptions);
     res.clearCookie('refreshToken', cookieOptions);
 
