@@ -2,10 +2,14 @@ import { pool } from "../../config/db.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken"
 import crypto from "crypto";
+import { hashToken } from "../../services/token.service.js";
 import { normalizeAndValidateUser, normalizeUserToDB, normalizeUserFromDB, normalizeUsersFromDB } from "../../validators/auth.validator.js";
 import { insertUser, findUserByEmail, findUserById } from "../../services/user.service.js"; 
 import { loginUser } from "../../services/auth.service.js";
 import { verifyAccessToken } from "../../services/token.service.js";
+import { createRefreshToken, verifyRefreshToken, findRefreshTokenByToken, revokeRefreshToken, getUserIdFromRefreshToken, revokeAllUserRefreshTokens  } from "../../services/refreshToken.service.js";
+import { generateAccessToken, generateRefreshToken } from "../../services/token.service.js";
+import { deactivateSession, deactivateAllUserSessions } from "../../services/session.service.js";
 
 // Definition of JWT cookie security
 const isProduction = process.env.NODE_ENV === "production";
@@ -213,347 +217,254 @@ export const me = async (req, res) => {
   }
 };
 
-export const refresh = async(req, res) => {
-
+export const refresh = async (req, res) => {
   const refreshToken = req.cookies.refreshToken;
 
   if (!refreshToken) {
-    return res.status(401).json({ message: "No autorizado" });
+    return res.status(401).json({
+      success: false,
+      message: 'Refresh token requerido'
+    });
   }
-
-  // Hash refresh token
-  const hashedRefreshToken = hashToken(refreshToken);
 
   let client;
 
-  try{
-    // Verify JWT
-    const refreshTokenData = jwt.verify(
-      refreshToken,
-      process.env.JWT_REFRESH_SECRET
-    );
-
+  try {
     client = await pool.connect();
-    
-    await client.query("BEGIN");
+    await client.query('BEGIN');
 
-    // Search for Refresh Tokens in DB
-    const refreshTokensResult = await client.query(
-      `SELECT
-        rt.*,
-        s.user_id,
-        s.is_active,
-        s.id AS session_id
-      FROM refresh_tokens rt
-      JOIN sessions s
-        ON s.id = rt.session_id
-      WHERE rt.token_hash = $1
-      FOR UPDATE;`,
-      [hashedRefreshToken]
-    );
+    // Verify refresh token (not JWT)
+    const tokenData = await verifyRefreshToken(refreshToken, client);
 
-    if (refreshTokensResult.rows.length === 0){
-      await client.query("ROLLBACK");
-      return res.status(401).json({message: "Refresh token inválido."})
-    }
+    // Generate new tokens
+    const newAccessToken = generateAccessToken(tokenData.userId);
+    const newRefreshToken = generateRefreshToken();
 
-    const currentRefreshToken = refreshTokensResult.rows[0];
+    // Store new refresh token
+    await createRefreshToken(tokenData.sessionId, newRefreshToken, client);
 
-    if (currentRefreshToken.is_used) {
+    await client.query('COMMIT');
 
-      const userId = currentRefreshToken.user_id;
-      console.warn(`[ALERTA DE SEGURIDAD] ¡Intento de reutilización de refresh token para el usuario ${userId}!`);
-
-      // Inactivate all sessions for that user
-      await client.query(
-        `UPDATE sessions 
-        SET is_active = false 
-        WHERE user_id = $1`,
-        [userId]
-      );
-
-      // Revoke all refresh tokens for that user
-      await client.query(
-        `UPDATE refresh_tokens
-        SET
-            is_revoked = true,
-            is_used = true,
-            revoked_at = CURRENT_TIMESTAMP
-        WHERE session_id IN (
-            SELECT id
-            FROM sessions
-            WHERE user_id = $1
-        );`,
-        [userId]
-      );
-
-      await client.query("COMMIT");
-
-      return res.status(401).json({message: "Token inválido o reutilizado. Inicie sesión de nuevo."})
-    }
-
-    if (currentRefreshToken.is_revoked) {
-      // Token revocado (logout, cambio de contraseña, etc.)
-      await client.query("ROLLBACK");
-      return res.status(401).json({
-          message: "Refresh token inválido"
-      });
-    }
-
-    if (!currentRefreshToken.is_active) {
-      await client.query("ROLLBACK");
-      return res.status(401).json({
-        message: "Sesión inválida."
-      });
-    }
-
-    if (refreshTokenData.id !== currentRefreshToken.user_id) {
-      await client.query("ROLLBACK");
-
-      return res.status(401).json({
-        message: "Refresh token inválido"
-      });
-    }
-
-    // It token has already expired
-    if (currentRefreshToken.expires_at < new Date()) {
-      await client.query("ROLLBACK");
-      return res.status(401).json({
-        message: "Refresh token inválido"
-      });
-    }
-
-    // Invalidate previous refresh token
-    const invalidateToken = await client.query(
-      `UPDATE refresh_tokens
-      SET
-          is_revoked = true,
-          is_used = true,
-          revoked_at = CURRENT_TIMESTAMP
-      WHERE token_hash = $1
-        AND is_used = false
-        AND is_revoked = false
-      RETURNING *;`,
-      [hashedRefreshToken]
-    );
-
-    if (invalidateToken.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return res.status(403).json({
-        message: "Refresh token inválido"
-      });
-    }
-
-    const payload = {
-      id: refreshTokenData.id,
-      email: refreshTokenData.email
-    }
-
-    // Create new JWT refresh token
-    const newRefreshToken = jwt.sign(
-      payload,
-      process.env.JWT_REFRESH_SECRET,
-      {expiresIn: "7d"}
-    );
-
-    const refreshExpiresAt = new Date(
-      Date.now() + 1000 * 60 * 60 * 24 * 7
-    );
-
-    // Hash refresh token
-    const hashedNewRefreshToken = hashToken(newRefreshToken);
-
-    // Store new refreshToken to DB
-    await client.query(
-      `INSERT INTO refresh_tokens (session_id, token_hash, expires_at)
-       VALUES ($1, $2, $3)
-      `,
-      [currentRefreshToken.session_id, hashedNewRefreshToken , refreshExpiresAt]
-    );
-
-    // Update session last_seen_at field
-    await client.query(
-      `UPDATE sessions
-       SET last_seen_at = CURRENT_TIMESTAMP
-       WHERE id = $1
-      `,
-      [currentRefreshToken.session_id]
-    );
-
-    await client.query("COMMIT");
-
-    // Create JWT access token
-    const newAccessToken = jwt.sign(
-      payload,
-      process.env.JWT_ACCESS_SECRET,
-      {expiresIn: "15m"}
-    );
-
-    return res
-    .cookie("accessToken", newAccessToken, {
+    // Update cookies with new tokens
+    res.cookie('accessToken', newAccessToken, {
       httpOnly: true,
-      sameSite: isProduction ? "none" : "lax",
+      sameSite: isProduction ? 'none' : 'lax',
       secure: isProduction,
-      maxAge: 1000 * 60 * 15 // 15 minutes
-    })
-    .cookie("refreshToken", newRefreshToken, {
-      httpOnly: true,
-      sameSite: isProduction ? "none" : "lax",
-      secure: isProduction,
-      maxAge: 1000 * 60 * 60 * 24 * 7
-    })
-    .json({ ok: true });
-  } catch (error) {
-    if (client) {
-      try {
-        await client.query("ROLLBACK");
-      } catch {}
-    }
-
-    return res.status(403).json({
-      message: "Refresh token inválido"
+      maxAge: 15 * 60 * 1000
     });
+
+    res.cookie('refreshToken', newRefreshToken, {
+      httpOnly: true,
+      sameSite: isProduction ? 'none' : 'lax',
+      secure: isProduction,
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Token renovado exitosamente'
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error en refresh:', error);
+
+    if (error.code === 'REFRESH_TOKEN_NOT_FOUND' ||
+        error.code === 'REFRESH_TOKEN_EXPIRED' ||
+        error.code === 'REFRESH_TOKEN_REVOKED' ||
+        error.code === 'SESSION_INACTIVE' ||
+        error.code === 'REFRESH_TOKEN_ALREADY_USED') {
+      
+      // Limpiar cookies en caso de error
+      res.clearCookie('accessToken');
+      res.clearCookie('refreshToken');
+      
+      return res.status(401).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+
   } finally {
     if (client) {
       client.release();
     }
   }
-}
+};
 
 export const logout = async (req, res) => {
-  const refreshToken = req.cookies.refreshToken;
+  const refreshToken = req.cookies?.refreshToken;
+
+  // If no refresh token is provided, clear cookies and return success
+  if (!refreshToken) {
+    res.clearCookie('accessToken', cookieOptions);
+    res.clearCookie('refreshToken', cookieOptions);
+    return res.status(200).json({
+      success: true,
+      message: 'Sesión cerrada exitosamente'
+    });
+  }
+
   const client = await pool.connect();
 
   try {
+    await client.query('BEGIN');
 
-    if (!refreshToken) {
-      return res.status(200).json({ ok: true });
+    // Search for the refresh token in the database
+    const tokenData = await findRefreshTokenByToken(refreshToken, client);
+
+    // If the token is not found, clear cookies and return success
+    if (!tokenData) {
+      await client.query('COMMIT');
+      res.clearCookie('accessToken', cookieOptions);
+      res.clearCookie('refreshToken', cookieOptions);
+      return res.status(200).json({
+        success: true,
+        message: 'Sesión cerrada exitosamente'
+      });
     }
 
-    const hashedRefreshToken = hashToken(refreshToken);
-
-    const refreshTokenInfoResult = await client.query(
-      `SELECT session_id
-       FROM refresh_tokens
-       WHERE token_hash = $1`,
-      [hashedRefreshToken]
-    );
-
-    if (refreshTokenInfoResult.rows.length === 0) {
-      res.clearCookie("accessToken", cookieOptions);
-      res.clearCookie("refreshToken", cookieOptions);
-      return res.json({ ok: true });
+    // Verify that the user making the request is the owner of the session
+    if (req.user && tokenData.user_id !== req.user.id) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({
+        success: false,
+        message: 'No autorizado para cerrar esta sesión.'
+      });
     }
 
-    const { session_id } = refreshTokenInfoResult.rows[0];
-
-    await client.query("BEGIN");
-
-    await client.query(
-      `UPDATE sessions
-       SET is_active = false
-       WHERE id = $1`,
-      [session_id]
+    // Revoke the refresh token (mark as revoked)
+    const revokedToken = await revokeRefreshToken(
+      hashToken(refreshToken),
+      client
     );
 
-    await client.query(
-      `UPDATE refresh_tokens
-       SET is_revoked = true,
-           revoked_at = CURRENT_TIMESTAMP
-       WHERE session_id = $1`,
-      [session_id]
-    );
+    if (!revokedToken) {
+      await client.query('ROLLBACK');
+      res.clearCookie('accessToken', cookieOptions);
+      res.clearCookie('refreshToken', cookieOptions);
+      return res.status(200).json({
+        success: true,
+        message: 'Sesión cerrada exitosamente'
+      });
+    }
 
-    await client.query("COMMIT");
+    // Deactivate the session associated with the revoked refresh token
+    await deactivateSession(tokenData.session_id, client);
 
-    res.clearCookie("accessToken", cookieOptions);
-    res.clearCookie("refreshToken", cookieOptions);
+    await client.query('COMMIT');
 
-    return res.json({ ok: true });
+    // Clear cookies on the client side
+    res.clearCookie('accessToken', cookieOptions);
+    res.clearCookie('refreshToken', cookieOptions);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Sesión cerrada exitosamente'
+    });
 
   } catch (error) {
+    console.error('Error en logout:', error);
+    
     try {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
     } catch {}
 
-    return res.status(500).json({ message: "Logout error" });
+    res.clearCookie('accessToken', cookieOptions);
+    res.clearCookie('refreshToken', cookieOptions);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Error al cerrar sesión'
+    });
+
   } finally {
     client.release();
   }
 };
 
 export const logoutAll = async (req, res) => {
-  
-  const refreshToken = req.cookies.refreshToken;
+  const refreshToken = req.cookies?.refreshToken;
 
+  // If no token is provided, clear cookies and respond with success
   if (!refreshToken) {
-    return res.status(200).json({ ok: true });
+    res.clearCookie('accessToken', cookieOptions);
+    res.clearCookie('refreshToken', cookieOptions);
+    return res.status(200).json({
+      success: true,
+      message: 'Todas las sesiones cerradas exitosamente'
+    });
   }
 
-  const hashedRefreshToken = hashToken(refreshToken);
-
   let client;
+
   try {
     client = await pool.connect();
+    await client.query('BEGIN');
 
-    await client.query("BEGIN");
-    
-    // Get user_id from refresh token
-    const tokenResult = await client.query(
-      `SELECT s.user_id
-      FROM refresh_tokens rt
-      JOIN sessions s ON s.id = rt.session_id
-      WHERE rt.token_hash = $1
-        AND rt.is_revoked = false`,
-      [hashedRefreshToken]
-    );
+    // Get user ID from the provided refresh token
+    const userId = await getUserIdFromRefreshToken(refreshToken, client);
 
-    // If token is not found, clear cookies and return success
-    if (tokenResult.rows.length === 0) {
-      await client.query("COMMIT"); // Cerramos transacción limpia
-      res.clearCookie("accessToken", cookieOptions);
-      res.clearCookie("refreshToken", cookieOptions);
-      return res.json({ ok: true });
+    // If the token is invalid or not found, clear cookies and return success
+    if (!userId) {
+      await client.query('COMMIT');
+      res.clearCookie('accessToken', cookieOptions);
+      res.clearCookie('refreshToken', cookieOptions);
+      return res.status(200).json({
+        success: true,
+        message: 'Todas las sesiones cerradas exitosamente'
+      });
     }
 
-    const userId = tokenResult.rows[0].user_id;
+    // Verify that the user making the request is the owner of the sessions
+    if (req.user && userId !== req.user.id) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({
+        success: false,
+        message: 'No autorizado para cerrar estas sesiones'
+      });
+    }
 
-    // Inactivate all sessions for that user
-    await client.query(
-      `UPDATE sessions 
-      SET is_active = false
-      WHERE user_id = $1`,
-      [userId]
-    );
+    // Deactivate all sessions for the user
+    const deactivatedSessions = await deactivateAllUserSessions(userId, client);
+    console.log(`Sesiones desactivadas: ${deactivatedSessions.length}`);
 
-    // Revoke all refresh tokens for that user
-    await client.query(
-      `UPDATE refresh_tokens
-      SET
-          is_revoked = true,
-          is_used = true,
-          revoked_at = CURRENT_TIMESTAMP
-      WHERE session_id IN (
-          SELECT id
-          FROM sessions
-          WHERE user_id = $1
-      );`,
-      [userId]
-    );
+    // Revoke all refresh tokens for the user
+    const revokedTokens = await revokeAllUserRefreshTokens(userId, client);
+    console.log(`Refresh tokens revocados: ${revokedTokens.length}`);
 
-    await client.query("COMMIT");
+    await client.query('COMMIT');
 
     // Clear cookies on the client side
-    res.clearCookie("accessToken", cookieOptions);
-    res.clearCookie("refreshToken", cookieOptions);
-    return res.json({ ok: true });
+    res.clearCookie('accessToken', cookieOptions);
+    res.clearCookie('refreshToken', cookieOptions);
+
+    return res.status(200).json({
+      success: true,
+      message: `Se cerraron ${deactivatedSessions.length} sesiones correctamente`
+    });
 
   } catch (error) {
+    console.error('Error en logoutAll:', error);
+
     try {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
     } catch {}
-    console.error("Error en logoutAll:", error);
-    return res.status(500).json({ message: "Error al cerrar todas las sesiones" });
+
+    // ✅ Limpiar cookies incluso en error
+    res.clearCookie('accessToken', cookieOptions);
+    res.clearCookie('refreshToken', cookieOptions);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Error al cerrar todas las sesiones'
+    });
+
   } finally {
     if (client) {
       client.release();
@@ -563,7 +474,6 @@ export const logoutAll = async (req, res) => {
 
 const cookieOptions = {
   httpOnly: true,
-  sameSite: isProduction ? "none" : "lax",
-  secure: isProduction,
-  path: "/"
+  sameSite: isProduction ? 'none' : 'lax',
+  secure: isProduction
 };
