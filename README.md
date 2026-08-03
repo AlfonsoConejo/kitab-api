@@ -53,7 +53,7 @@ Base path: `/api/subjects`
 
 | Method | Endpoint | Description | Authentication |
 |--------|----------|-------------|----------------|
-| POST | `/:subjectId` | Create one or more classes for a subject | ✅ |
+| POST | `/:subjectId/classes` | Create one or more classes for a subject | ✅ |
 | DELETE | `/:subjectId` | Delete a subject | ✅ |
 | GET | `/:subjectId/with-classes` | Get a subject with all of its associated classes | ✅ |
 
