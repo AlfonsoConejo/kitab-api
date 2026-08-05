@@ -5,7 +5,7 @@ export const assertSubjectOwnership = async (subjectId, userId, client = pool) =
 
   const result = await db.query(
     `
-    SELECT id, period_id, name, teacher, color, created_at, updated_at, start_date, end_date
+    SELECT s.id, s.period_id, s.name, s.teacher, s.color, s.created_at, s.updated_at, s.start_date, s.end_date
     FROM subjects s
     JOIN academic_periods p ON s.period_id = p.id
     WHERE s.id = $1 AND p.user_id = $2

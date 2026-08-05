@@ -217,7 +217,7 @@ export const getSubjectWithClasses = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error al obtener la materia y sus clases:", error);
+    console.error("Error en getSubjectWithClasses: ", error);
 
 		if (error.code === "SUBJECT_NOT_FOUND") {
       return res.status(404).json({
