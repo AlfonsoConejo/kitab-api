@@ -1,9 +1,10 @@
+import { normalizeToUTCDate } from "../../src/utils/date.utils.js";
+
 const COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
 
 export const normalizeAndValidateSubject = (subject, period) => {
 
   const normalized = normalizeSubjectToDB(subject);
-  
   validateSubject(normalized, period);
   
   return normalized;
@@ -15,9 +16,16 @@ export const validateSubject = (subject, period) => {
     name,
     teacher,
     color,
-    startDate,
-    endDate,
+    start_date,
+    end_date,
   } = subject;
+
+  if (!period) {
+    throwValidationError("El periodo es obligatorio.");
+  }
+  
+  console.log("Información del periodo: ", period);
+  console.log("Información de la materia: ", subject);
 
   if (!name) {
     throwValidationError("El nombre es obligatorio.");
@@ -39,19 +47,37 @@ export const validateSubject = (subject, period) => {
     throwValidationError("El nombre del profesor debe tener máximo 50 caracteres.");
   }
 
-  if (!startDate) {
+  if (!start_date) {
     throwValidationError("La fecha de inicio es obligatoria.");
   }
 
-  if (!endDate) {
+  if (!end_date) {
     throwValidationError("La fecha de término es obligatoria.");
   }
 
-  if (Number.isNaN(startDate.getTime())) {
+  const periodStartDate = new Date(period.start_date);
+  const periodEndDate = new Date(period.end_date);
+
+  // Normalize period dates to UTC for comparison
+  const normalizedPeriodStart = normalizeToUTCDate(periodStartDate);
+  const normalizedPeriodEnd = normalizeToUTCDate(periodEndDate);
+
+  if (isNaN(periodStartDate.getTime()) || isNaN(periodEndDate.getTime())) {
+    throwValidationError("Las fechas del periodo no son válidas.");
+  }
+
+  const startDate = start_date instanceof Date ? start_date : new Date(start_date);
+  const endDate = end_date instanceof Date ? end_date : new Date(end_date);
+
+  // Normalize start and end dates to UTC for comparison
+  const normalizedStart = normalizeToUTCDate(startDate);
+  const normalizedEnd = normalizeToUTCDate(endDate);
+
+  if (isNaN(startDate.getTime())) {
     throwValidationError("La fecha de inicio no es válida.");
   }
   
-  if (Number.isNaN(endDate.getTime())) {
+  if (isNaN(endDate.getTime())) {
     throwValidationError("La fecha de término no es válida.");
   }
   
@@ -59,7 +85,7 @@ export const validateSubject = (subject, period) => {
     throwValidationError("La fecha de inicio debe ser anterior a la fecha de término.");
   }
 
-  if (startDate < period.start_date || endDate > period.end_date) {
+  if (normalizedStart < normalizedPeriodStart || normalizedEnd > normalizedPeriodEnd) {
     throwValidationError("Las fechas de la materia deben estar dentro del periodo académico.");
   }
 }
@@ -67,6 +93,7 @@ export const validateSubject = (subject, period) => {
 const throwValidationError = (message) => {
   const error = new Error(message);
   error.status = 400;
+  error.name = 'ValidationError';
   throw error;
 };
 

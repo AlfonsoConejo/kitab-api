@@ -522,7 +522,7 @@ export const createSubject = async (req, res) => {
     });
 
   } catch (error) {
-    console.error(error);
+    console.error('Error en createSubject: ', error);
 
     if (client && transactionStarted) {
       await client.query("ROLLBACK");
