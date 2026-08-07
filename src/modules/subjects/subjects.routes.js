@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
-import { deleteSubject, getSubjectWithClasses, createClasses } from "./subjects.controller.js";
+import { deleteSubject, getSubjectWithClasses, createClasses, updateSubject } from "./subjects.controller.js";
 
 const router = Router();
 
 router.route("/:subjectId")
    .delete(authMiddleware, deleteSubject)
+   .put(authMiddleware, updateSubject)
 
 router.route("/:subjectId/with-classes")
    .get(authMiddleware, getSubjectWithClasses)

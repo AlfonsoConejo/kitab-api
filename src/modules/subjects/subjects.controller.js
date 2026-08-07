@@ -107,6 +107,10 @@ export const createClasses = async (req, res) => {
   }
 }
 
+export const updateSubject = async (req, res) => {
+  console.log("Estos son los datos enviados por el front: ", req);
+}
+
 export const deleteSubject = async (req, res) => {
   // Verify user authentication
   const userId = req.user?.id;

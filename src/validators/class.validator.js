@@ -12,7 +12,7 @@ const throwValidationError = (message) => {
 export const normalizeAndValidateClasses = (classes) => {
 
   const normalized = classes.map(normalizeClassToDB);
-
+  
   validateClasses(normalized);
 
   return normalized;
@@ -26,22 +26,32 @@ export const validateClasses = (classes) => {
       type,
       mode,
       classroom,
-      startTime,
-      endTime,
+      start_time,
+      end_time,
     } = classItem;
 
     if (!Array.isArray(days)) {
       throwValidationError("Los días deben estar dentro de un arreglo.");
     }
 
-    if (
-      !days.length ||
-      !type ||
-      !mode ||
-      !startTime ||
-      !endTime
-    ) {
-      throwValidationError("Todos los campos son obligatorios, excepto el aula.");
+    if(!days.length) {
+      throwValidationError("Las clases deben ocurrir al menos un día.");
+    }
+
+    if(!type) {
+      throwValidationError("El tipo de clase es obligatorio.");
+    }
+
+    if(!mode) {
+      throwValidationError("La modalidades de las clases es obligatoria.");
+    }
+
+    if (!start_time) {
+      throwValidationError("La hora de inicio es obligatoria.");
+    }
+
+    if (!end_time) {
+      throwValidationError("La hora de término es obligatoria.");
     }
 
     const hasInvalidDay = days.some(
@@ -72,15 +82,15 @@ export const validateClasses = (classes) => {
       throwValidationError("El salón no puede tener más de 10 caracteres.");
     }
 
-    if (!TIME_REGEX.test(startTime)) {
+    if (!TIME_REGEX.test(start_time)) {
       throwValidationError("La hora de inicio debe tener el formato HH:mm.");
     }
 
-    if (!TIME_REGEX.test(endTime)) {
+    if (!TIME_REGEX.test(end_time)) {
       throwValidationError("La hora de término debe tener el formato HH:mm.");
     }
 
-    if (endTime <= startTime) {
+    if (end_time <= start_time) {
       throwValidationError("La hora de término debe ser posterior a la hora de inicio.");
     }
   }
@@ -119,8 +129,8 @@ export function normalizeClassFromDB(dbClass) {
     subjectId: dbClass.subject_id,
     subjectName: dbClass.subject_name,
     days: dbClass.days || [],
-    startTime: dbClass.start_time,
-    endTime: dbClass.end_time,
+    startTime: dbClass.start_time?.slice(0, 5) || null,
+    endTime: dbClass.end_time?.slice(0, 5) || null,
     mode: dbClass.mode || null,
     classroom: dbClass.classroom || null,
     type: dbClass.type || null

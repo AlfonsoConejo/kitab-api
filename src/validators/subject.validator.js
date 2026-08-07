@@ -23,9 +23,6 @@ export const validateSubject = (subject, period) => {
   if (!period) {
     throwValidationError("El periodo es obligatorio.");
   }
-  
-  console.log("Información del periodo: ", period);
-  console.log("Información de la materia: ", subject);
 
   if (!name) {
     throwValidationError("El nombre es obligatorio.");
