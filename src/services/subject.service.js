@@ -5,7 +5,8 @@ export const assertSubjectOwnership = async (subjectId, userId, client = pool) =
 
   const result = await db.query(
     `
-    SELECT s.id, s.period_id, s.name, s.teacher, s.color, s.created_at, s.updated_at, s.start_date, s.end_date
+    SELECT s.id, s.period_id, s.name, s.teacher, s.color, s.created_at, s.updated_at, s.start_date, s.end_date, p.start_date AS period_start_date,
+      p.end_date AS period_end_date
     FROM subjects s
     JOIN academic_periods p ON s.period_id = p.id
     WHERE s.id = $1 AND p.user_id = $2
@@ -85,6 +86,46 @@ export const insertSubject = async (periodId, subject, client = pool) => {
     RETURNING id, period_id, name, teacher, color, start_date, end_date`,
     [periodId, name, teacher, color, start_date, end_date]
   );
+
+  return result.rows[0];
+};
+
+export const updateSubjectDB = async ( subjectId, subject, client = pool ) => {
+  const db = client || pool;
+
+  const {
+    name,
+    teacher,
+    color,
+    start_date,
+    end_date
+  } = subject;
+
+  const result = await db.query(
+    `
+    UPDATE subjects
+    SET name = $1,
+        teacher = $2,
+        color = $3,
+        start_date = $4,
+        end_date = $5
+    WHERE id = $6
+    RETURNING id, period_id, name, teacher, color, start_date, end_date, created_at, updated_at
+    `,
+    [
+      name,
+      teacher,
+      color,
+      start_date,
+      end_date,
+      subjectId
+    ]
+  );
+
+  // Check if there were rows affected
+  if (result.rowCount === 0) {
+    return null;
+  }
 
   return result.rows[0];
 };

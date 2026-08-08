@@ -101,6 +101,7 @@ export function normalizeClassToDB(frontData, forUpdate = false) {
   if (!frontData) return null;
 
   const result = {
+    id: frontData.id || null,
     subject_id: frontData.subjectId || null,
     days: frontData.days || [],
     start_time: frontData.startTime || null,
