@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createPeriod, getPeriods, getPeriod, updatePeriod, deletePeriod, getSubjectsByPeriod, createSubject, getClassesByPeriod } from "../periods/periods.controller.js";
+import { createPeriod, getPeriods, getPeriod, updatePeriod, deletePeriod, getSubjectsByPeriod, createSubject, getClassesByPeriod, checkConflicts } from "../periods/periods.controller.js";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 
 const router = Router();
@@ -19,5 +19,8 @@ router.route("/:periodId/subjects")
 
 router.route("/:periodId/classes")
   .get(authMiddleware, getClassesByPeriod)
+
+router.route("/periods/:periodId/classes/check-conflicts")
+  .post(authMiddleware, checkConflicts)
   
 export default router;
