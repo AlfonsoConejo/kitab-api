@@ -128,9 +128,37 @@ export const readClassesByPeriod = async (periodId, client = pool) => {
     JOIN subjects s ON c.subject_id = s.id
     JOIN academic_periods p ON s.period_id = p.id
     WHERE p.id = $1
-    ORDER BY s.name, c.start_time ASC  -- ← Ordenar por materia y hora
+    ORDER BY s.name, c.start_time ASC 
     `,
     [periodId]
+  );
+
+  return result.rows;
+};
+
+export const readClassesByPeriodExcludingSubject = async ( periodId, subjectId, client = pool ) => {
+  const db = client || pool;
+
+  const result = await db.query(
+    `
+      SELECT
+        c.id,
+        c.subject_id,
+        s.name AS subject_name,
+        c.days,
+        c.start_time,
+        c.end_time,
+        c.mode,
+        c.classroom,
+        c.type
+      FROM classes c
+      JOIN subjects s ON c.subject_id = s.id
+      JOIN academic_periods p ON s.period_id = p.id
+      WHERE p.id = $1
+        AND s.id <> $2
+      ORDER BY s.name, c.start_time ASC
+    `,
+    [periodId, subjectId]
   );
 
   return result.rows;

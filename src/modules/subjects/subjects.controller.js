@@ -1,5 +1,5 @@
 import { pool } from "../../config/db.js"
-import { assertClassesOwnership, readClassesBySubject, insertClasses, updateClassesDB, deleteClassesDB } from "../../services/class.service.js";
+import { assertClassesOwnership, readClassesByPeriod, readClassesByPeriodExcludingSubject, readClassesBySubject, insertClasses, updateClassesDB, deleteClassesDB } from "../../services/class.service.js";
 import { normalizeAndValidateClasses, normalizeClassesFromDB } from "../../validators/class.validator.js";
 import { assertSubjectOwnership, deleteSubjectDB, readSubject, updateSubjectDB } from "../../services/subject.service.js";
 import { normalizeAndValidateSubject, normalizeSubjectFromDB } from "../../validators/subject.validator.js";
@@ -110,7 +110,6 @@ export const createClasses = async (req, res) => {
 
 export const updateSubject = async (req, res) => {
 
-  console.log('Estos son los datos enviados por el front: ', req.body)
   const { classes, deletedClassIds, ...subjectData } = req.body;
 
   // Validate that classes is an array
@@ -414,3 +413,139 @@ export const getSubjectWithClasses = async (req, res) => {
     }
   }
 }
+
+export const checkConflicts = async (req, res) => {
+  // Verify authentication
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: "Usuario no autenticado"
+    });
+  }
+
+  // Validate subjectId
+  const {subjectId} = req.params;
+
+  const parsedSubjectId = Number(subjectId);
+
+  if (!Number.isInteger(parsedSubjectId) || parsedSubjectId <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: "El ID de la materia no es válido."
+    });
+  }
+
+  const { classes: classesFromFront = [] } = req.body;
+
+  let client;
+
+  try {
+    client = await pool.connect();
+
+    await client.query("BEGIN");
+
+    // Assert and get ids from the subject
+    const { id: subjectId, period_id: periodId } = await assertSubjectOwnership(parsedSubjectId, userId, client);
+
+    // Get all classes from the period
+    const classesFromDB = await readClassesByPeriodExcludingSubject(periodId, subjectId, client);
+
+    // Normalize data for frontend
+    const normalizedClassesFromDB = normalizeClassesFromDB(classesFromDB);
+
+    const externalConflicts = [];
+    const internalConflicts = [];
+
+    // Front vs DB
+    for (const frontendClass of classesFromFront) {
+      for (const dbClass of normalizedClassesFromDB) {
+        const conflictDays = classesOverlap(
+          frontendClass,
+          dbClass
+        );
+
+        if (conflictDays) {
+          externalConflicts.push({
+            tempId: frontendClass.tempId,
+            conflictDays,
+            subject: dbClass.subjectName,
+            startTime: dbClass.startTime,
+            endTime: dbClass.endTime
+          });
+        }  
+      }
+    }
+
+    // Front vs Front
+    for (let i = 0; i < classesFromFront.length; i++) {
+      const classA = classesFromFront[i];
+
+      for (let j = i + 1; j < classesFromFront.length; j++) {
+        const classB = classesFromFront[j];
+
+        const conflictDays = classesOverlap(classA, classB);
+
+        if (conflictDays) {
+          internalConflicts.push({
+          classA: classA.tempId,
+          classB: classB.tempId,
+          conflictDays,
+          classAStartTime: classA.startTime,
+          classAEndTime: classA.endTime,
+          classBStartTime: classB.startTime,
+          classBEndTime: classB.endTime
+        });
+        }
+      }
+    }
+
+    await client.query("COMMIT");
+
+    return res.status(200).json({
+      success: true,
+      externalConflicts,
+      internalConflicts,
+    });
+
+  } catch ( error ){
+    console.error('Error en checkConflicts: ', error);
+
+    if (error.code === "SUBJECT_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Error interno del servidor."
+    });
+
+  } finally {
+    if (client) {
+      client.release();
+    }
+  }
+}
+
+const classesOverlap = (classA, classB) => {
+  const conflictDays = classA.days.filter((day) =>
+    classB.days.includes(day)
+  );
+
+  if (conflictDays.length === 0) {
+    return null;
+  }
+
+  const overlap =
+    classA.startTime < classB.endTime &&
+    classB.startTime < classA.endTime;
+
+  if (!overlap) {
+    return null;
+  }
+
+  return conflictDays;
+};
