@@ -14,9 +14,9 @@ router.route("/:subjectId/with-classes")
 router.route("/:subjectId/classes")
    .post(authMiddleware, createClasses);
 
-router.route("/:subjectId/classes/check-external-conflicts")
+router.route("/classes/check-external-conflicts")
   .post(authMiddleware, checkExternalConflicts);
 
-router.route("/:subjectId/classes/check-internal-conflicts")
+router.route("/classes/check-internal-conflicts")
   .post(authMiddleware, checkInternalConflicts);
 export default router;

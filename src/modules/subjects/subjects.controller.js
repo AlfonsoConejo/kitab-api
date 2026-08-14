@@ -425,41 +425,70 @@ export const checkExternalConflicts = async (req, res) => {
     });
   }
 
-  // Validate subjectId
-  const { subjectId } = req.params;
-  const parsedSubjectId = Number(subjectId);
+  const {
+    periodId,
+    subjectId,
+    classes: classesFromFront = []
+  } = req.body;
 
-  if (!Number.isInteger(parsedSubjectId) || parsedSubjectId <= 0) {
+  // Validate classes
+  if (!Array.isArray(classesFromFront)) {
     return res.status(400).json({
       success: false,
-      message: "El ID de la materia no es válido."
+      message: "Las clases no son válidas."
     });
   }
 
-  const { classes: classesFromFront = [] } = req.body;
+  // Validate periodId
+  const parsedPeriodId = Number(periodId);
+
+  if (!Number.isInteger(parsedPeriodId) || parsedPeriodId <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: "El ID del periodo no es válido."
+    });
+  }
+
+  // Validate subjectId only if provided
+  let parsedSubjectId = null;
+
+  if (subjectId !== undefined && subjectId !== null) {
+    parsedSubjectId = Number(subjectId);
+
+    if (!Number.isInteger(parsedSubjectId) || parsedSubjectId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "El ID de la materia no es válido."
+      });
+    }
+  }
 
   let client;
 
   try {
     client = await pool.connect();
 
-    await client.query("BEGIN");
+    let finalPeriodId = parsedPeriodId;
 
-    // Assert and get ids from the subject
-    const {
-      id: subjectId,
-      period_id: periodId
-    } = await assertSubjectOwnership(
-      parsedSubjectId,
-      userId,
-      client
-    );
+    // If editing an existing subject, verify ownership
+    // and use the period associated with that subject.
+    if (parsedSubjectId !== null) {
+      const {
+        period_id: subjectPeriodId
+      } = await assertSubjectOwnership(
+        parsedSubjectId,
+        userId,
+        client
+      );
+
+      finalPeriodId = subjectPeriodId;
+    }
 
     // Get classes from other subjects in the same period
     const classesFromDB =
       await readClassesByPeriodExcludingSubject(
-        periodId,
-        subjectId,
+        finalPeriodId,
+        parsedSubjectId,
         client
       );
 
@@ -487,8 +516,6 @@ export const checkExternalConflicts = async (req, res) => {
         }
       }
     }
-
-    await client.query("COMMIT");
 
     return res.status(200).json({
       success: true,
@@ -531,98 +558,64 @@ export const checkInternalConflicts = async (req, res) => {
     });
   }
 
-  // Validate subjectId
-  const { subjectId } = req.params;
-  const parsedSubjectId = Number(subjectId);
-
-  if (!Number.isInteger(parsedSubjectId) || parsedSubjectId <= 0) {
-    return res.status(400).json({
-      success: false,
-      message: "El ID de la materia no es válido."
-    });
-  }
-
   const { classes: classesFromFront = [] } = req.body;
 
-  let client;
+  // Validate classes
+  if (!Array.isArray(classesFromFront)) {
+    return res.status(400).json({
+      success: false,
+      message: "Las clases no son válidas."
+    });
+  }
 
-  try {
-    client = await pool.connect();
+  console.log("Esta es la información que recibimos: ", req.body);
 
-    await client.query("BEGIN");
+  const internalConflicts = [];
 
-    // Verify that the subject belongs to the user
-    await assertSubjectOwnership(
-      parsedSubjectId,
-      userId,
-      client
-    );
+  // Front vs Front
+  for (let i = 0; i < classesFromFront.length; i++) {
+    const classA = classesFromFront[i];
 
-    const internalConflicts = [];
+    for (let j = i + 1; j < classesFromFront.length; j++) {
+      const classB = classesFromFront[j];
 
-    // Front vs Front
-    for (let i = 0; i < classesFromFront.length; i++) {
-      const classA = classesFromFront[i];
+      const conflictDays = classesOverlap(
+        classA,
+        classB
+      );
 
-      for (
-        let j = i + 1;
-        j < classesFromFront.length;
-        j++
-      ) {
-        const classB = classesFromFront[j];
-
-        const conflictDays = classesOverlap(
-          classA,
-          classB
-        );
-
-        if (conflictDays) {
-          internalConflicts.push({
-            classA: classA.tempId,
-            classB: classB.tempId,
-            conflictDays,
-            classAStartTime: classA.startTime,
-            classAEndTime: classA.endTime,
-            classBStartTime: classB.startTime,
-            classBEndTime: classB.endTime
-          });
-        }
+      if (conflictDays) {
+        internalConflicts.push({
+          classA: classA.tempId,
+          classB: classB.tempId,
+          conflictDays,
+          classAStartTime: classA.startTime,
+          classAEndTime: classA.endTime,
+          classBStartTime: classB.startTime,
+          classBEndTime: classB.endTime
+        });
       }
     }
-
-    await client.query("COMMIT");
-
-    return res.status(200).json({
-      success: true,
-      internalConflicts
-    });
-
-  } catch (error) {
-    console.error(
-      "Error en checkInternalConflicts:",
-      error
-    );
-
-    if (error.code === "SUBJECT_NOT_FOUND") {
-      return res.status(404).json({
-        success: false,
-        message: error.message
-      });
-    }
-
-    return res.status(500).json({
-      success: false,
-      message: "Error interno del servidor."
-    });
-
-  } finally {
-    if (client) {
-      client.release();
-    }
   }
+
+  return res.status(200).json({
+    success: true,
+    internalConflicts
+  });
 };
 
 const classesOverlap = (classA, classB) => {
+  if (
+    !Array.isArray(classA.days) ||
+    !Array.isArray(classB.days) ||
+    !classA.startTime ||
+    !classA.endTime ||
+    !classB.startTime ||
+    !classB.endTime
+  ) {
+    return null;
+  }
+
   const conflictDays = classA.days.filter((day) =>
     classB.days.includes(day)
   );

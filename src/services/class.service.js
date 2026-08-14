@@ -155,7 +155,7 @@ export const readClassesByPeriodExcludingSubject = async ( periodId, subjectId, 
       JOIN subjects s ON c.subject_id = s.id
       JOIN academic_periods p ON s.period_id = p.id
       WHERE p.id = $1
-        AND s.id <> $2
+        AND ($2::integer IS NULL OR s.id <> $2)
       ORDER BY s.name, c.start_time ASC
     `,
     [periodId, subjectId]
