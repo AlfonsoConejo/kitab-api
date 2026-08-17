@@ -568,8 +568,6 @@ export const checkInternalConflicts = async (req, res) => {
     });
   }
 
-  console.log("Esta es la información que recibimos: ", req.body);
-
   const internalConflicts = [];
 
   // Front vs Front

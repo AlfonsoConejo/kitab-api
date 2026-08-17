@@ -55,6 +55,7 @@ export const verifyRefreshToken = async (token, client) => {
   }
 
   // Check if the token has already been used (one-time use)
+  /*
   if (tokenData.is_used) {
     console.warn(`⚠️ REUSE ATTACK! User: ${tokenData.user_id}, Session: ${tokenData.session_id}`);
     
@@ -80,7 +81,7 @@ export const verifyRefreshToken = async (token, client) => {
     const error = new Error('Token reutilizado. Inicia sesión nuevamente.');
     error.code = 'REFRESH_TOKEN_ALREADY_USED';
     throw error;
-  }
+  } */
 
   // Mark as used (one-time use)
   await client.query(
