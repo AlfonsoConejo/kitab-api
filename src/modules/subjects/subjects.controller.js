@@ -507,7 +507,7 @@ export const checkExternalConflicts = async (req, res) => {
 
         if (conflictDays) {
           externalConflicts.push({
-            tempId: frontendClass.tempId,
+            id: frontendClass.tempId ?? frontendClass.id,
             conflictDays,
             subject: dbClass.subjectName,
             startTime: dbClass.startTime,
@@ -584,8 +584,8 @@ export const checkInternalConflicts = async (req, res) => {
 
       if (conflictDays) {
         internalConflicts.push({
-          classA: classA.tempId,
-          classB: classB.tempId,
+          classA: classA.tempId ?? classA.id,
+          classB: classB.tempId ?? classB.id,
           conflictDays,
           classAStartTime: classA.startTime,
           classAEndTime: classA.endTime,
