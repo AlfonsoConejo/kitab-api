@@ -112,6 +112,7 @@ export const updateClassesDB = async (classes, client = pool) => {
 
 export const readClassesByPeriod = async (periodId, client = pool) => {
   const db = client || pool;
+
   const result = await db.query(
     `
     SELECT
@@ -126,9 +127,12 @@ export const readClassesByPeriod = async (periodId, client = pool) => {
       c.type
     FROM classes c
     JOIN subjects s ON c.subject_id = s.id
-    JOIN academic_periods p ON s.period_id = p.id
-    WHERE p.id = $1
-    ORDER BY s.name, c.start_time ASC 
+    WHERE s.period_id = $1
+    ORDER BY
+      (SELECT MIN(day) FROM unnest(c.days) AS day) ASC,
+      c.start_time ASC,
+      s.name ASC,
+      c.id ASC
     `,
     [periodId]
   );
@@ -166,6 +170,7 @@ export const readClassesByPeriodExcludingSubject = async ( periodId, subjectId, 
 
 export const readClassesBySubject = async (subjectId, client = pool) => {
   const db = client || pool;
+
   const result = await db.query(
     `
     SELECT
@@ -179,7 +184,10 @@ export const readClassesBySubject = async (subjectId, client = pool) => {
       type
     FROM classes
     WHERE subject_id = $1
-    ORDER BY start_time ASC
+    ORDER BY
+      (SELECT MIN(day) FROM unnest(days) AS day) ASC,
+      start_time ASC,
+      id ASC
     `,
     [subjectId]
   );

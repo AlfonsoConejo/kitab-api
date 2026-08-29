@@ -5,7 +5,7 @@ import { createRefreshToken } from './refreshToken.service.js';
 import { generateAccessToken, generateRefreshToken } from './token.service.js';
 
 export const loginUser = async (email, password, req, client) => {
-  // 1. Find user
+  // Find the user
   const user = await findUserByEmail(email, client);
   if (!user) {
     const error = new Error('Credenciales inválidas');
@@ -13,7 +13,7 @@ export const loginUser = async (email, password, req, client) => {
     throw error;
   }
 
-  // 2. Verify password
+  // Verify password
   const isValid = await bcrypt.compare(password, user.password_hash);
   if (!isValid) {
     const error = new Error('Credenciales inválidas');
@@ -21,17 +21,17 @@ export const loginUser = async (email, password, req, client) => {
     throw error;
   }
 
-  // 3. Create session
+  // Create session
   const session = await createSession(user.id, req, client);
 
-  // 4. Generate tokens
+  // Generate tokens
   const accessToken = generateAccessToken(user.id);
   const refreshToken = generateRefreshToken();
 
   // 5. Save refresh token
   await createRefreshToken(session.id, refreshToken, client);
 
-  // 6. Return data
+  // Return data
   return {
     user: {
       id: user.id,

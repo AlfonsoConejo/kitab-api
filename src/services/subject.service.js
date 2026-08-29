@@ -39,7 +39,7 @@ export const readSubjectsByPeriod = async (periodId, client = pool) => {
       end_date
     FROM subjects
     WHERE period_id = $1
-    ORDER BY name;`,
+    ORDER BY unaccent(name);`,
     [periodId]
   );
 

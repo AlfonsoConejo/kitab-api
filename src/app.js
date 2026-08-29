@@ -28,7 +28,7 @@ app.use(cookieParser());
   }
 })();
 
-// HEALTH CHECK COMPLETO
+// Health check endpoints
 app.get('/health', async (req, res) => {
   const healthCheck = {
     status: 'ok',
@@ -45,7 +45,7 @@ app.get('/health', async (req, res) => {
     environment: process.env.NODE_ENV
   };
 
-  // Medir tiempo de respuesta de la DB
+  // Mesure response time
   const start = Date.now();
   try {
     await pool.query('SELECT 1');
@@ -58,7 +58,7 @@ app.get('/health', async (req, res) => {
     healthCheck.status = 'degraded';
   }
 
-  // Si la DB está caída, el servicio no está saludable
+  // If db is not available, the service is not healthy.
   if (healthCheck.services.database.status === 'disconnected') {
     res.status(503).json(healthCheck);
   } else {
