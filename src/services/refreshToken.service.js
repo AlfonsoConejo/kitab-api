@@ -21,7 +21,8 @@ export const verifyRefreshToken = async (token, client) => {
             s.user_id, s.is_active
     FROM refresh_tokens rt
     JOIN sessions s ON rt.session_id = s.id
-    WHERE rt.token_hash = $1`,
+    WHERE rt.token_hash = $1
+    FOR UPDATE OF rt, s`,
     [tokenHash]
   );
 
@@ -54,40 +55,39 @@ export const verifyRefreshToken = async (token, client) => {
     throw error;
   }
 
-  // Check if the token has already been used (one-time use)
-  /*
+  // Check if the token has already been used (one-time use).
+  // The row lock above makes this state check atomic with the update below.
   if (tokenData.is_used) {
     console.warn(`⚠️ REUSE ATTACK! User: ${tokenData.user_id}, Session: ${tokenData.session_id}`);
     
-    // Revoke all refresh tokens for this user and session
+    // Revoke only the affected session. Other devices remain authenticated.
     await client.query(
-      `UPDATE refresh_tokens rt
+      `UPDATE refresh_tokens
       SET is_revoked = true, revoked_at = CURRENT_TIMESTAMP
-      FROM sessions s
-      WHERE rt.session_id = s.id
-        AND s.user_id = $1
-        AND rt.is_revoked = false`,
-      [tokenData.user_id]
+      WHERE session_id = $1
+        AND is_revoked = false`,
+      [tokenData.session_id]
     );
 
-    // Deactivate all sessions for this user
+    // A session is the refresh-token family in the current schema.
     await client.query(
       `UPDATE sessions
-      SET is_active = false
-      WHERE user_id = $1`,
-      [tokenData.user_id]
+       SET is_active = false
+       WHERE id = $1`,
+      [tokenData.session_id]
     );
 
     const error = new Error('Token reutilizado. Inicia sesión nuevamente.');
     error.code = 'REFRESH_TOKEN_ALREADY_USED';
     throw error;
-  } */
+  }
 
   // Mark as used (one-time use)
   await client.query(
     `UPDATE refresh_tokens
     SET is_used = true, used_at = CURRENT_TIMESTAMP
-    WHERE id = $1`,
+    WHERE id = $1
+      AND is_used = false`,
     [tokenData.id]
   );
 

@@ -266,7 +266,15 @@ export const refresh = async (req, res) => {
     });
 
   } catch (error) {
-    await client.query('ROLLBACK');
+    // A reused token revokes its session before throwing. Commit that security
+    // action; other failures must discard the transaction as usual.
+    if (client) {
+      if (error.code === 'REFRESH_TOKEN_ALREADY_USED') {
+        await client.query('COMMIT');
+      } else {
+        await client.query('ROLLBACK');
+      }
+    }
     console.error('Error en refresh:', error);
 
     if (error.code === 'REFRESH_TOKEN_NOT_FOUND' ||
