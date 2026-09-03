@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import { pool } from './config/db.js';
-import { initJobs } from './jobs/index.js';
 import cookieParser from "cookie-parser";
 import authRoutes from "./modules/auth/auth.routes.js";
 import periodRoutes from "./modules/periods/periods.routes.js";
@@ -18,15 +17,6 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
-
-// Initialize cron jobs
-(async () => {
-  try {
-    await initJobs();
-  } catch (error) {
-    console.error('Error iniciando cronjobs:', error);
-  }
-})();
 
 // Health check endpoints
 app.get('/health', async (req, res) => {
@@ -71,6 +61,4 @@ app.use("/api/periods", periodRoutes);
 app.use("/api/subjects", subjectsRoutes);
 app.use("/api/classes", classesRoutes);
 
-app.listen(3000, () => {
-  console.log('Backend running on http://localhost:3000');
-});
+export default app;
