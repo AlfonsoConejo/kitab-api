@@ -6,7 +6,6 @@ import { hashToken } from "../../services/token.service.js";
 import { normalizeAndValidateUser, normalizeUserToDB, normalizeUserFromDB, normalizeUsersFromDB } from "../../validators/auth.validator.js";
 import { insertUser, findUserByEmail, findUserById } from "../../services/user.service.js"; 
 import { loginUser } from "../../services/auth.service.js";
-import { verifyAccessToken } from "../../services/token.service.js";
 import { createRefreshToken, verifyRefreshToken, findRefreshTokenByToken, revokeRefreshToken, getUserIdFromRefreshToken, revokeAllUserRefreshTokens  } from "../../services/refreshToken.service.js";
 import { generateAccessToken, generateRefreshToken } from "../../services/token.service.js";
 import { deactivateSession, deactivateAllUserSessions } from "../../services/session.service.js";
@@ -159,40 +158,7 @@ export const login = async (req, res) => {
 
 export const me = async (req, res) => {
   try {
-    const accessToken = req.cookies?.accessToken;
-
-    if (!accessToken) {
-      return res.status(401).json({
-        success: false,
-        message: 'Token de acceso requerido'
-      });
-    }
-
-    let decoded;
-    try {
-      decoded = verifyAccessToken(accessToken);
-    } catch (error) {
-      if (error.code === 'TOKEN_EXPIRED') {
-        return res.status(401).json({
-          success: false,
-          message: 'Token expirado. Por favor, inicia sesión nuevamente.'
-        });
-      }
-      
-      if (error.code === 'INVALID_TOKEN') {
-        return res.status(401).json({
-          success: false,
-          message: 'Token inválido'
-        });
-      }
-
-      return res.status(401).json({
-        success: false,
-        message: 'Error de autenticación'
-      });
-    }
-
-    const user = await findUserById(decoded.id);
+    const user = await findUserById(req.user.id);
 
     if (!user) {
       return res.status(404).json({
