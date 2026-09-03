@@ -6,46 +6,48 @@ const throwValidationError = (message) => {
 };
 
 export const validateUser = (user) => {
-    let { firstName, lastName, email, password } = user;
+  let { first_name, last_name, email, password } = user;
 
-    firstName = firstName?.trim();
-    lastName = lastName?.trim();
-    email = email?.trim().toLowerCase();
+  first_name = first_name?.trim();
+  last_name = last_name?.trim();
+  email = email?.trim().toLowerCase();
 
-    // Validations
-		if (!firstName?.trim()) {
-			throwValidationError("El nombre es obligatorio.");
-		}
+  // Validations
+  if (!first_name) {
+    throwValidationError("El nombre es obligatorio.");
+  }
 
-		if (!lastName?.trim()) {
-			throwValidationError("El apellido es obligatorio.");
-		}
+  if (!last_name) {
+    throwValidationError("El apellido es obligatorio.");
+  }
 
-		if (!email?.trim()) {
-			throwValidationError("El correo electrónico es obligatorio.");
-		}
+  if (!email) {
+    throwValidationError("El correo electrónico es obligatorio.");
+  }
 
-		if (!password?.trim()) {
-			throwValidationError("La contraseña es obligatoria.");
-		}
+  if (!password?.trim()) {
+    throwValidationError("La contraseña es obligatoria.");
+  }
 
-    if (lastName.length < 2) {
-      throwValidationError("El apellido debe contener al menos 2 caracteres.");
-    }
+  if (last_name.length < 2) {
+    throwValidationError("El apellido debe contener al menos 2 caracteres.");
+  }
 
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      throwValidationError("El correo electrónico es inválido.");
-    }
+  if (!/\S+@\S+\.\S+/.test(email)) {
+    throwValidationError("El correo electrónico es inválido.");
+  }
 
-    if (password.length < 6) {
-      throwValidationError("La contraseña debe contener al menos 6 caracteres.");
-    }
+  if (password.length < 6) {
+    throwValidationError(
+      "La contraseña debe contener al menos 6 caracteres."
+    );
+  }
 
-		// Return clean data
-		return { firstName, lastName, email, password };
+  return { first_name, last_name, email, password };
 };
 
 export const normalizeAndValidateUser = (user) => {
+
 	// Verify if data exists
   if (!user) {
     throwValidationError("Los datos del usuario son requeridos.");
@@ -67,7 +69,7 @@ export function normalizeUserToDB(frontData, forUpdate = false) {
     first_name: frontData.firstName?.trim() || '',
     last_name: frontData.lastName?.trim() || '',
     email: frontData.email?.trim().toLowerCase() || '',
-    password_hash: frontData.password || null,
+    password: frontData.password || null,
   };
 
   // Para UPDATE, eliminar campos undefined
