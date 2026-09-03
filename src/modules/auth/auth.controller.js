@@ -13,6 +13,20 @@ import { deactivateSession, deactivateAllUserSessions } from "../../services/ses
 
 // Definition of JWT cookie security
 const isProduction = process.env.NODE_ENV === "production";
+const cookieOptions = {
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: isProduction,
+  path: '/'
+};
+const accessTokenCookieOptions = {
+  ...cookieOptions,
+  maxAge: 15 * 60 * 1000
+};
+const refreshTokenCookieOptions = {
+  ...cookieOptions,
+  maxAge: 7 * 24 * 60 * 60 * 1000
+};
 
 export const register = async (req, res) => {
 
@@ -105,19 +119,8 @@ export const login = async (req, res) => {
     const userForFrontend = normalizeUserFromDB(user);
 
     // Set cookies with appropriate security settings
-    res.cookie('accessToken', tokens.accessToken, {
-      httpOnly: true,
-      sameSite: isProduction ? 'none' : 'lax',
-      secure: isProduction,
-      maxAge: 15 * 60 * 1000 // 15 minutos
-    });
-
-    res.cookie('refreshToken', tokens.refreshToken, {
-      httpOnly: true,
-      sameSite: isProduction ? 'none' : 'lax',
-      secure: isProduction,
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 días
-    });
+    res.cookie('accessToken', tokens.accessToken, accessTokenCookieOptions);
+    res.cookie('refreshToken', tokens.refreshToken, refreshTokenCookieOptions);
 
     // Return response with user and session data
     return res.status(200).json({
@@ -246,19 +249,8 @@ export const refresh = async (req, res) => {
     await client.query('COMMIT');
 
     // Update cookies with new tokens
-    res.cookie('accessToken', newAccessToken, {
-      httpOnly: true,
-      sameSite: isProduction ? 'none' : 'lax',
-      secure: isProduction,
-      maxAge: 15 * 60 * 1000
-    });
-
-    res.cookie('refreshToken', newRefreshToken, {
-      httpOnly: true,
-      sameSite: isProduction ? 'none' : 'lax',
-      secure: isProduction,
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    });
+    res.cookie('accessToken', newAccessToken, accessTokenCookieOptions);
+    res.cookie('refreshToken', newRefreshToken, refreshTokenCookieOptions);
 
     return res.status(200).json({
       success: true,
@@ -284,8 +276,8 @@ export const refresh = async (req, res) => {
         error.code === 'REFRESH_TOKEN_ALREADY_USED') {
       
       // Limpiar cookies en caso de error
-      res.clearCookie('accessToken');
-      res.clearCookie('refreshToken');
+      res.clearCookie('accessToken', cookieOptions);
+      res.clearCookie('refreshToken', cookieOptions);
       
       return res.status(401).json({
         success: false,
@@ -480,8 +472,3 @@ export const logoutAll = async (req, res) => {
   }
 };
 
-const cookieOptions = {
-  httpOnly: true,
-  sameSite: isProduction ? 'none' : 'lax',
-  secure: isProduction
-};
