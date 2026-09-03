@@ -33,12 +33,7 @@ export const loginUser = async (email, password, req, client) => {
 
   // Return data
   return {
-    user: {
-      id: user.id,
-      email: user.email,
-      firstName: user.first_name,
-      lastName: user.last_name
-    },
+    user,
     session: {
       id: session.id
     },

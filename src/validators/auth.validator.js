@@ -85,14 +85,18 @@ export function normalizeUserToDB(frontData, forUpdate = false) {
 export function normalizeUserFromDB(dbUser) {
   if (!dbUser) return null;
 
+  if (!dbUser.created_at) {
+    throw new Error('El usuario no tiene fecha de creación');
+  }
+
   return {
     id: dbUser.id,
     firstName: dbUser.first_name?.trim() || '',
     lastName: dbUser.last_name?.trim() || '',
     email: dbUser.email?.trim().toLowerCase() || '',
     fullName: `${dbUser.first_name?.trim() || ''} ${dbUser.last_name?.trim() || ''}`.trim(),
-    createdAt: dbUser.created_at || null,
-    updatedAt: dbUser.updated_at || null,
+    createdAt: dbUser.created_at,
+    updatedAt: dbUser.updated_at ?? null,
   };
 }
 
