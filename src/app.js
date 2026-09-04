@@ -6,6 +6,7 @@ import authRoutes from "./modules/auth/auth.routes.js";
 import periodRoutes from "./modules/periods/periods.routes.js";
 import subjectsRoutes from "./modules/subjects/subjects.routes.js";
 import classesRoutes from "./modules/classes/classes.routes.js";
+import { csrfOriginMiddleware } from "./middleware/csrf-origin.middleware.js";
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
+app.use("/api", csrfOriginMiddleware);
 
 // Health check endpoints
 app.get('/health', async (req, res) => {
