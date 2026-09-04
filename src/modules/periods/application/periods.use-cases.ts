@@ -2,6 +2,7 @@ import type { CreateSubjectInput, PeriodInput } from '../periods.schemas.js';
 import { parseSubjectForPeriod } from '../periods.schemas.js';
 import { toClassDto, toPeriodDto, toSubjectDto } from '../periods.mapper.js';
 import { PgPeriodsRepository } from '../infrastructure/pg-periods.repository.js';
+import { withTransaction } from '../../../shared/database/transaction.js';
 
 export class PeriodsUseCases {
   // Recibe el repositorio que proporciona acceso a los datos de períodos.
@@ -70,7 +71,8 @@ export class PeriodsUseCases {
 
   // Crea una materia y sus clases de forma atómica después de validar sus fechas contra el período.
   async createSubject(userId: number, periodId: number, payload: unknown) {
-    return this.periods.withTransaction(
+    return withTransaction(
+      this.periods.database,
       async (client) => {
         const period = await this.periods.getOwnedPeriod(periodId, userId, client);
 

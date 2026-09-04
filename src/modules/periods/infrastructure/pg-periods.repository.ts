@@ -1,7 +1,8 @@
 import type { Pool, PoolClient } from 'pg';
 import { pool } from '../../../config/db.js';
 import { PeriodNotFoundError } from '../periods.errors.js';
-import type { ClassRow, PeriodRow, SubjectRow } from '../periods.types.js';
+import type { PeriodRow } from '../periods.types.js';
+import type { ClassRow, SubjectRow } from '../../subjects/subjects.types.js';
 import type { CreateSubjectInput, PeriodInput } from '../periods.schemas.js';
 import { toPeriodRecord, toSubjectRecord } from '../periods.mapper.js';
 
@@ -9,23 +10,7 @@ type DatabaseClient = Pool | PoolClient;
 
 export class PgPeriodsRepository {
   // Recibe el pool de PostgreSQL; permite sustituirlo por un doble en pruebas.
-  constructor(private readonly database: Pool = pool) {}
-
-  // Ejecuta una operación dentro de una transacción y confirma o revierte sus cambios.
-  async withTransaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T> {
-    const client = await this.database.connect();
-    try {
-      await client.query('BEGIN');
-      const result = await callback(client);
-      await client.query('COMMIT');
-      return result;
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
-  }
+  constructor(readonly database: Pool = pool) {}
 
   // Inserta un período académico y devuelve la fila creada.
   async createPeriod(input: PeriodInput, userId: number): Promise<PeriodRow> {

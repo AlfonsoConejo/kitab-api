@@ -1,9 +1,8 @@
-export class PeriodNotFoundError extends Error {
-  readonly code = 'PERIOD_NOT_FOUND';
-  readonly status = 404;
+import { NotFoundError } from '../../shared/http/app-error.js';
 
+export class PeriodNotFoundError extends NotFoundError {
   constructor(message = 'El periodo no existe o no te pertenece.') {
-    super(message);
+    super(message, 'PERIOD_NOT_FOUND');
     this.name = 'PeriodNotFoundError';
   }
 }

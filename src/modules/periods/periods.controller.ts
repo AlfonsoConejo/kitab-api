@@ -1,21 +1,14 @@
 import type { Request, Response } from 'express';
 import { ZodError } from 'zod';
+import { getUserIdOrRespond, type AuthenticatedRequest } from '../../shared/http/authenticated-request.js';
+import { sendErrorResponse } from '../../shared/http/error-response.js';
 import { periodIdSchema, periodSchema } from './periods.schemas.js';
-import { PeriodNotFoundError } from './periods.errors.js';
 import { PeriodsUseCases } from './application/periods.use-cases.js';
 import { PgPeriodsRepository } from './infrastructure/pg-periods.repository.js';
 
 const useCases = new PeriodsUseCases(new PgPeriodsRepository());
-type AuthenticatedRequest = Request & { user?: { id?: number } };
 
 // Devuelve la respuesta estándar cuando la ruta no tiene un usuario autenticado.
-const unauthorized = (res: Response) => {
-  return res.status(401).json({
-    success: false,
-    message: 'Usuario no autenticado'
-  });
-};
-
 // Valida y convierte el parámetro periodId de la URL a un número entero positivo.
 const periodIdFrom = (req: Request) => {
   const validatedParams = periodIdSchema.parse(req.params);
@@ -26,59 +19,12 @@ const periodIdFrom = (req: Request) => {
 };
 
 // Obtiene el ID del usuario autenticado o responde 401 si no está disponible.
-function userIdFrom(req: AuthenticatedRequest, res: Response): number | null {
-  const userId = req.user?.id;
-  if (!userId) {
-    unauthorized(res);
-    return null;
-  }
-  return userId;
-}
-
-// Traduce errores de validación, dominio y PostgreSQL a la respuesta HTTP correspondiente.
-function sendError(res: Response, error: unknown, uniqueMessage?: string) {
-  if (error instanceof ZodError) {
-    const message =
-      error.issues[0]?.message ?? 'Datos inválidos.';
-
-    return res.status(400).json({
-      success: false,
-      message: message
-    });
-  }
-
-  if (error instanceof PeriodNotFoundError) {
-    return res.status(404).json({
-      success: false,
-      message: error.message
-    });
-  }
-
-  const isDatabaseError =
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error;
-
-  if (isDatabaseError && error.code === '23505') {
-    const message =
-      uniqueMessage ?? 'El recurso ya existe.';
-
-    return res.status(409).json({
-      success: false,
-      message: message
-    });
-  }
-
-  console.error(
-    'Error en periods:',
-    error
-  );
-
-  return res.status(500).json({
-    success: false,
-    message: 'Error interno del servidor.'
-  });
-}
+const userIdFrom = getUserIdOrRespond;
+const sendError = (
+  response: Response,
+  error: unknown,
+  uniqueMessage?: string,
+) => sendErrorResponse(response, error, { uniqueMessage });
 
 // Crea un período académico para el usuario autenticado.
 export async function createPeriod( req: AuthenticatedRequest, res: Response) {
