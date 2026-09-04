@@ -1,9 +1,9 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
-export const generateAccessToken = (userId) => {
+export const generateAccessToken = (userId, sessionId) => {
   return jwt.sign(
-    { id: userId },
+    { id: userId, sid: sessionId },
     process.env.JWT_ACCESS_SECRET,
     { expiresIn: process.env.JWT_ACCESS_EXPIRY || '15m' }
   );

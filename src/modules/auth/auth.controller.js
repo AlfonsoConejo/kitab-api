@@ -206,7 +206,10 @@ export const refresh = async (req, res) => {
     const tokenData = await verifyRefreshToken(refreshToken, client);
 
     // Generate new tokens
-    const newAccessToken = generateAccessToken(tokenData.userId);
+    const newAccessToken = generateAccessToken(
+      tokenData.userId,
+      tokenData.sessionId
+    );
     const newRefreshToken = generateRefreshToken();
 
     // Store new refresh token
@@ -396,13 +399,13 @@ export const logoutAll = async (req, res) => {
       });
     }
 
-    // Deactivate all sessions for the user
-    const deactivatedSessions = await deactivateAllUserSessions(userId, client);
-    console.log(`Sesiones desactivadas: ${deactivatedSessions.length}`);
-
     // Revoke all refresh tokens for the user
     const revokedTokens = await revokeAllUserRefreshTokens(userId, client);
     console.log(`Refresh tokens revocados: ${revokedTokens.length}`);
+
+    // Deactivate all sessions for the user after their tokens are revoked.
+    const deactivatedSessions = await deactivateAllUserSessions(userId, client);
+    console.log(`Sesiones desactivadas: ${deactivatedSessions.length}`);
 
     await client.query('COMMIT');
 

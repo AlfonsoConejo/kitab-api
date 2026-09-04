@@ -25,7 +25,7 @@ export const loginUser = async (email, password, req, client) => {
   const session = await createSession(user.id, req, client);
 
   // Generate tokens
-  const accessToken = generateAccessToken(user.id);
+  const accessToken = generateAccessToken(user.id, session.id);
   const refreshToken = generateRefreshToken();
 
   // 5. Save refresh token

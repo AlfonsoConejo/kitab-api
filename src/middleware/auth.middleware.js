@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken"
+import { touchSession } from "../services/session.service.js";
 
-export const authMiddleware = (req, res, next) => {
+export const authMiddleware = async (req, res, next) => {
   const token = req.cookies.accessToken;
 
   if (!token) {
@@ -15,6 +16,32 @@ export const authMiddleware = (req, res, next) => {
       token,
       process.env.JWT_ACCESS_SECRET
     );
+
+    if (!Number.isInteger(decoded.sid)) {
+      return res.status(401).json({
+        code: "INVALID_SESSION_TOKEN",
+        message: "Token de sesión inválido"
+      });
+    }
+
+    let session;
+
+    try {
+      session = await touchSession(decoded.sid, decoded.id);
+    } catch (error) {
+      console.error("Error actualizando la sesión:", error);
+      return res.status(500).json({
+        code: "SESSION_UPDATE_FAILED",
+        message: "Error interno del servidor"
+      });
+    }
+
+    if (!session) {
+      return res.status(401).json({
+        code: "SESSION_INACTIVE",
+        message: "Sesión inactiva"
+      });
+    }
 
     req.user = decoded;
 

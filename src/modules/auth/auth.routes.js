@@ -9,6 +9,6 @@ router.post("/login", login);
 router.get("/me", authMiddleware, me);
 router.post("/refresh", refresh);
 router.post("/logout", logout);
-router.post("/logout-all", logoutAll);
+router.post("/logout-all", authMiddleware, logoutAll);
 
 export default router;

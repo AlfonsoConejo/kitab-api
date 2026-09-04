@@ -1,4 +1,5 @@
 import { getLocationFromIp } from '../utils/geo.js';
+import { pool } from "../config/db.js";
 
 export const createSession = async (userId, req, client) => {
   const userAgent = req.get('User-Agent');
@@ -29,6 +30,22 @@ export const createSession = async (userId, req, client) => {
   );
 
   return result.rows[0];
+};
+
+export const touchSession = async (sessionId, userId, client = pool) => {
+  const db = client || pool;
+
+  const result = await db.query(
+    `UPDATE sessions
+     SET last_seen_at = CURRENT_TIMESTAMP
+     WHERE id = $1
+       AND user_id = $2
+       AND is_active = true
+     RETURNING id`,
+    [sessionId, userId]
+  );
+
+  return result.rows[0] || null;
 };
 
 export const deactivateSession = async (sessionId, client = pool) => {
