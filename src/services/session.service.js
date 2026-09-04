@@ -36,12 +36,24 @@ export const touchSession = async (sessionId, userId, client = pool) => {
   const db = client || pool;
 
   const result = await db.query(
-    `UPDATE sessions
-     SET last_seen_at = CURRENT_TIMESTAMP
-     WHERE id = $1
-       AND user_id = $2
-       AND is_active = true
-     RETURNING id`,
+    `WITH active_session AS (
+       SELECT id
+       FROM sessions
+       WHERE id = $1
+         AND user_id = $2
+         AND is_active = true
+       FOR UPDATE
+     ), updated_session AS (
+       UPDATE sessions
+       SET last_seen_at = CURRENT_TIMESTAMP
+       WHERE id = (SELECT id FROM active_session)
+         AND (
+           last_seen_at IS NULL
+           OR last_seen_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes'
+         )
+       RETURNING id
+     )
+     SELECT id FROM active_session`,
     [sessionId, userId]
   );
 
