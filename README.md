@@ -14,8 +14,16 @@ https://github.com/AlfonsoConejo/kitab
 - PostgreSQL
 - JWT
 - Bcrypt
+- TypeScript
+
 
 ## API Endpoints
+
+### Health Check
+
+| Method | Endpoint | Description | Authentication |
+|--------|----------|-------------|----------------|
+| GET | `/health` | Reports API status and PostgreSQL connectivity | ❌ |
 
 ### Authentication
 
@@ -53,9 +61,12 @@ Base path: `/api/subjects`
 
 | Method | Endpoint | Description | Authentication |
 |--------|----------|-------------|----------------|
+| PUT | `/:subjectId` | Update a subject and its classes | ✅ |
 | POST | `/:subjectId/classes` | Create one or more classes for a subject | ✅ |
 | DELETE | `/:subjectId` | Delete a subject | ✅ |
 | GET | `/:subjectId/with-classes` | Get a subject with all of its associated classes | ✅ |
+| POST | `/classes/check-external-conflicts` | Find schedule conflicts with other subjects in a period | ✅ |
+| POST | `/classes/check-internal-conflicts` | Find schedule conflicts between classes in the request payload | ✅ |
 
 ## Response Format
 
@@ -68,3 +79,5 @@ The API returns appropriate HTTP status codes and JSON error messages for invali
 ## Authentication
 
 The API uses JWT access tokens for protected endpoints and HttpOnly refresh token cookies for session renewal.
+
+All state-changing `/api` requests must also include an allowed `Origin` header configured through `FRONTEND_URL`.
