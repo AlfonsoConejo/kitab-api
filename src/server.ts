@@ -3,7 +3,8 @@ import { initJobs } from './jobs/index.js';
 
 const port = Number(process.env.PORT) || 3000;
 
-const startServer = async () => {
+// Inicializa tareas programadas y comienza a escuchar solicitudes HTTP.
+async function startServer() {
   try {
     await initJobs();
   } catch (error) {
@@ -13,6 +14,6 @@ const startServer = async () => {
   app.listen(port, () => {
     console.log(`Backend running on port ${port}`);
   });
-};
+}
 
-startServer();
+void startServer();
