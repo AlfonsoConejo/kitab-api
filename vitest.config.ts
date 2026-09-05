@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
@@ -8,15 +8,14 @@ export default defineConfig({
       reporter: ['text', 'html'],
       exclude: ['node_modules/', 'test/'],
     },
-    // Configuración para importar archivos con extensión .js
+    // Permite interoperar con módulos JavaScript durante la migración gradual.
     deps: {
-      interopDefault: true
-    }
+      interopDefault: true,
+    },
   },
-  // Si usas alias en tu proyecto, configúralos aquí
   resolve: {
     alias: {
-      '@': '/src'
-    }
-  }
-})
+      '@': '/src',
+    },
+  },
+});
