@@ -1,12 +1,13 @@
 import cron from 'node-cron';
 import { cleanupExpiredData } from './cleanup.job.js';
 
-export const initJobs = async () => {
+// Registra las tareas programadas que deben ejecutarse mientras la API está activa.
+export async function initJobs(): Promise<void> {
   console.log('Inicializando cronjobs...');
 
-  // Schedule the cleanup job to run every day at 12:00 AM
   cron.schedule('0 0 * * *', async () => {
     console.log('Ejecutando limpieza programada...');
+
     try {
       const result = await cleanupExpiredData();
       console.log('Limpieza programada completada:', result);
@@ -16,4 +17,4 @@ export const initJobs = async () => {
   });
 
   console.log('Cronjobs inicializados correctamente');
-};
+}
