@@ -4,6 +4,7 @@ import express from 'express';
 import { pool } from './config/db.js';
 import { csrfOriginMiddleware } from './middleware/csrf-origin.middleware.js';
 import authRoutes from './modules/auth/auth.routes.js';
+import daysOffRoutes from './modules/days-off/days-off.routes.js';
 import periodRoutes from './modules/periods/periods.routes.js';
 import subjectsRoutes from './modules/subjects/subjects.routes.js';
 
@@ -58,6 +59,7 @@ app.get('/health', async (_request, response) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/periods/:periodId/days-off', daysOffRoutes);
 app.use('/api/periods', periodRoutes);
 app.use('/api/subjects', subjectsRoutes);
 

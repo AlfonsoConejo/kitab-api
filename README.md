@@ -54,6 +54,7 @@ Base path: `/api/periods`
 | GET | `/:periodId/subjects` | Get all subjects belonging to an academic period | ✅ |
 | POST | `/:periodId/subjects` | Create a new subject within an academic period | ✅ |
 | GET | `/:periodId/classes` | Get all classes associated with an academic period | ✅ |
+| GET | `/:periodId/days-off` | Get all days off associated with an academic period | ✅ |
 
 ### Subjects
 
@@ -67,6 +68,7 @@ Base path: `/api/subjects`
 | GET | `/:subjectId/with-classes` | Get a subject with all of its associated classes | ✅ |
 | POST | `/classes/check-external-conflicts` | Find schedule conflicts with other subjects in a period | ✅ |
 | POST | `/classes/check-internal-conflicts` | Find schedule conflicts between classes in the request payload | ✅ |
+
 
 ## Response Format
 
