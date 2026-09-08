@@ -66,6 +66,36 @@ export async function createDayOff(
   }
 }
 
+// Actualiza un descanso perteneciente a un período del usuario autenticado.
+export async function updateDayOff(
+  request: AuthenticatedRequest,
+  response: Response,
+) {
+  const userId = getUserIdOrRespond(request, response);
+
+  if (!userId) {
+    return;
+  }
+
+  try {
+    const { periodId, dayOffId } = dayOffIdsFrom(request);
+    const dayOff = await useCases.update(
+      userId,
+      periodId,
+      dayOffId,
+      request.body,
+    );
+
+    return response.status(200).json({
+      success: true,
+      message: 'Descanso actualizado correctamente.',
+      data: dayOff,
+    });
+  } catch (error) {
+    return sendErrorResponse(response, error);
+  }
+}
+
 // Elimina un descanso perteneciente a un período del usuario autenticado.
 export async function deleteDayOff(
   request: AuthenticatedRequest,

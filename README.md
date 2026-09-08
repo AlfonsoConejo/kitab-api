@@ -54,9 +54,17 @@ Base path: `/api/periods`
 | GET | `/:periodId/subjects` | Get all subjects belonging to an academic period | ✅ |
 | POST | `/:periodId/subjects` | Create a new subject within an academic period | ✅ |
 | GET | `/:periodId/classes` | Get all classes associated with an academic period | ✅ |
-| GET | `/:periodId/days-off` | Get all days off associated with an academic period | ✅ |
-| POST | `/:periodId/days-off` | Create a day off within an academic period | ✅ |
-| DELETE | `/:periodId/days-off/:dayOffId` | Delete a day off from an academic period | ✅ |
+
+### Days Off
+
+Base path: `/api/periods/:periodId/days-off`
+
+| Method | Endpoint | Description | Authentication |
+|--------|----------|-------------|----------------|
+| GET | `/` | Get all days off for the academic period | ✅ |
+| POST | `/` | Create a day off within the academic period | ✅ |
+| PUT | `/:dayOffId` | Update a day off within the academic period | ✅ |
+| DELETE | `/:dayOffId` | Delete a day off from the academic period | ✅ |
 
 ### Subjects
 

@@ -57,6 +57,39 @@ export class PgDaysOffRepository {
     return result.rows[0]!;
   }
 
+  // Actualiza un descanso únicamente si pertenece al período indicado.
+  async updateByIdAndPeriod(
+    dayOffId: number,
+    periodId: number,
+    input: CreateDayOffInput,
+  ): Promise<DayOffRow> {
+    const dayOff = toDayOffRecord(input);
+    const result = await this.database.query<DayOffRow>(
+      `UPDATE days_off
+       SET name = $1,
+           start_date = $2,
+           end_date = $3,
+           notes = $4,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $5 AND period_id = $6
+       RETURNING id, period_id, name, start_date, end_date, notes, created_at, updated_at`,
+      [
+        dayOff.name,
+        dayOff.start_date,
+        dayOff.end_date,
+        dayOff.notes,
+        dayOffId,
+        periodId,
+      ],
+    );
+
+    if (!result.rowCount) {
+      throw new DayOffNotFoundError();
+    }
+
+    return result.rows[0]!;
+  }
+
   // Elimina un descanso únicamente si pertenece al período indicado.
   async deleteByIdAndPeriod(dayOffId: number, periodId: number): Promise<void> {
     const result = await this.database.query(

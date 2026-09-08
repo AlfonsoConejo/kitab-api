@@ -23,6 +23,24 @@ export class DaysOffUseCases {
     return toDayOffDto(dayOff);
   }
 
+  // Valida y actualiza un descanso dentro de un período perteneciente al usuario.
+  async update(
+    userId: number,
+    periodId: number,
+    dayOffId: number,
+    payload: unknown,
+  ) {
+    const period = await this.daysOff.getOwnedPeriod(periodId, userId);
+    const input = parseDayOffForPeriod(payload, period);
+    const updatedDayOff = await this.daysOff.updateByIdAndPeriod(
+      dayOffId,
+      periodId,
+      input,
+    );
+
+    return toDayOffDto(updatedDayOff);
+  }
+
   // Comprueba la propiedad del período y elimina uno de sus descansos.
   async delete(userId: number, periodId: number, dayOffId: number) {
     await this.daysOff.getOwnedPeriod(periodId, userId);
