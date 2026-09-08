@@ -14,6 +14,14 @@ export class DaysOffUseCases {
     return daysOff.map(toDayOffDto);
   }
 
+  // Comprueba la propiedad del período y devuelve uno de sus descansos.
+  async getById(userId: number, periodId: number, dayOffId: number) {
+    await this.daysOff.getOwnedPeriod(periodId, userId);
+    const dayOff = await this.daysOff.getByIdAndPeriod(dayOffId, periodId);
+
+    return toDayOffDto(dayOff);
+  }
+
   // Crea un día libre después de validarlo contra el rango del período.
   async create(userId: number, periodId: number, payload: unknown) {
     const period = await this.daysOff.getOwnedPeriod(periodId, userId);

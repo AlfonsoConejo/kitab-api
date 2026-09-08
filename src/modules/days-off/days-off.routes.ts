@@ -3,6 +3,7 @@ import { authMiddleware } from '../../middleware/auth.middleware.js';
 import {
   createDayOff,
   deleteDayOff,
+  getDayOffById,
   getDaysOffByPeriod,
   updateDayOff,
 } from './days-off.controller.js';
@@ -15,6 +16,7 @@ router.route('/')
   .post(authMiddleware, createDayOff);
 
 router.route('/:dayOffId')
+  .get(authMiddleware, getDayOffById)
   .put(authMiddleware, updateDayOff)
   .delete(authMiddleware, deleteDayOff);
 

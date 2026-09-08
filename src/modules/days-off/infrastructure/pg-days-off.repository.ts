@@ -38,6 +38,22 @@ export class PgDaysOffRepository {
     return result.rows;
   }
 
+  // Obtiene un descanso únicamente si pertenece al período indicado.
+  async getByIdAndPeriod(dayOffId: number, periodId: number): Promise<DayOffRow> {
+    const result = await this.database.query<DayOffRow>(
+      `SELECT id, period_id, name, start_date, end_date, notes, created_at, updated_at
+       FROM days_off
+       WHERE id = $1 AND period_id = $2`,
+      [dayOffId, periodId],
+    );
+
+    if (!result.rowCount) {
+      throw new DayOffNotFoundError();
+    }
+
+    return result.rows[0]!;
+  }
+
   // Inserta un día libre dentro del período indicado.
   async create(periodId: number, input: CreateDayOffInput): Promise<DayOffRow> {
     const dayOff = toDayOffRecord(input);
