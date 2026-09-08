@@ -5,7 +5,7 @@ import type { DayOffDto, DayOffRow } from './days-off.types.js';
 export const toDayOffDto = (dayOff: DayOffRow): DayOffDto => ({
   id: dayOff.id,
   periodId: dayOff.period_id,
-  name: dayOff.name?.trim() || null,
+  name: dayOff.name.trim(),
   startDate: toDateOnly(dayOff.start_date),
   endDate: toDateOnly(dayOff.end_date),
   notes: dayOff.notes?.trim() || null,

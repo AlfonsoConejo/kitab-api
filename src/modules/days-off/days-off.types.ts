@@ -12,7 +12,7 @@ export interface DayOffRow {
 export interface DayOffDto {
   id: number;
   periodId: number;
-  name: string | null;
+  name: string;
   startDate: string;
   endDate: string;
   notes: string | null;

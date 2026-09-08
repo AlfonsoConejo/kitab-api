@@ -25,9 +25,9 @@ export class PgDaysOffRepository {
   async listByPeriod(periodId: number): Promise<DayOffRow[]> {
     const result = await this.database.query<DayOffRow>(
       `SELECT id, period_id, name, start_date, end_date, notes, created_at, updated_at
-       FROM days_off
-       WHERE period_id = $1
-       ORDER BY start_date, end_date, id`,
+      FROM days_off
+      WHERE period_id = $1
+      ORDER BY start_date DESC, end_date DESC, id DESC`,
       [periodId],
     );
 
