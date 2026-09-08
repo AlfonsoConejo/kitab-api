@@ -9,6 +9,11 @@ export const daysOffPeriodIdSchema = z.object({
   periodId: positiveIdSchema('El ID del período no es válido.'),
 });
 
+// Valida los identificadores usados para operar sobre un descanso concreto.
+export const dayOffParamsSchema = daysOffPeriodIdSchema.extend({
+  dayOffId: positiveIdSchema('El ID del descanso no es válido.'),
+});
+
 // Valida los datos necesarios para crear un día libre o un intervalo sin clases.
 export const createDayOffSchema = z
   .object({

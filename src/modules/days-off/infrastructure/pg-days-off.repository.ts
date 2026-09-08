@@ -1,6 +1,6 @@
 import type { Pool } from 'pg';
 import { pool } from '../../../config/db.js';
-import { DayOffPeriodNotFoundError } from '../days-off.errors.js';
+import { DayOffNotFoundError, DayOffPeriodNotFoundError } from '../days-off.errors.js';
 import { toDayOffRecord } from '../days-off.mapper.js';
 import type { CreateDayOffInput } from '../days-off.schemas.js';
 import type { DayOffRow, PeriodDateRangeRow } from '../days-off.types.js';
@@ -55,5 +55,19 @@ export class PgDaysOffRepository {
     );
 
     return result.rows[0]!;
+  }
+
+  // Elimina un descanso únicamente si pertenece al período indicado.
+  async deleteByIdAndPeriod(dayOffId: number, periodId: number): Promise<void> {
+    const result = await this.database.query(
+      `DELETE FROM days_off
+       WHERE id = $1 AND period_id = $2
+       RETURNING id`,
+      [dayOffId, periodId],
+    );
+
+    if (!result.rowCount) {
+      throw new DayOffNotFoundError();
+    }
   }
 }

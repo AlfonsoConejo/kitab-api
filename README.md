@@ -56,6 +56,7 @@ Base path: `/api/periods`
 | GET | `/:periodId/classes` | Get all classes associated with an academic period | ✅ |
 | GET | `/:periodId/days-off` | Get all days off associated with an academic period | ✅ |
 | POST | `/:periodId/days-off` | Create a day off within an academic period | ✅ |
+| DELETE | `/:periodId/days-off/:dayOffId` | Delete a day off from an academic period | ✅ |
 
 ### Subjects
 

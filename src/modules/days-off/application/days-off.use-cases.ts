@@ -22,4 +22,10 @@ export class DaysOffUseCases {
 
     return toDayOffDto(dayOff);
   }
+
+  // Comprueba la propiedad del período y elimina uno de sus descansos.
+  async delete(userId: number, periodId: number, dayOffId: number) {
+    await this.daysOff.getOwnedPeriod(periodId, userId);
+    await this.daysOff.deleteByIdAndPeriod(dayOffId, periodId);
+  }
 }
