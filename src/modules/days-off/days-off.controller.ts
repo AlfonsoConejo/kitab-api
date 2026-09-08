@@ -35,3 +35,28 @@ export async function getDaysOffByPeriod(
     return sendErrorResponse(response, error);
   }
 }
+
+// Crea un día libre dentro de un período perteneciente al usuario autenticado.
+export async function createDayOff(
+  request: AuthenticatedRequest,
+  response: Response,
+) {
+  const userId = getUserIdOrRespond(request, response);
+
+  if (!userId) {
+    return;
+  }
+
+  try {
+    const periodId = periodIdFrom(request);
+    const dayOff = await useCases.create(userId, periodId, request.body);
+
+    return response.status(201).json({
+      success: true,
+      message: 'Descanso creado correctamente.',
+      data: dayOff,
+    });
+  } catch (error) {
+    return sendErrorResponse(response, error);
+  }
+}

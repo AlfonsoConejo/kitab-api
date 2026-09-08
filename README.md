@@ -55,6 +55,7 @@ Base path: `/api/periods`
 | POST | `/:periodId/subjects` | Create a new subject within an academic period | ✅ |
 | GET | `/:periodId/classes` | Get all classes associated with an academic period | ✅ |
 | GET | `/:periodId/days-off` | Get all days off associated with an academic period | ✅ |
+| POST | `/:periodId/days-off` | Create a day off within an academic period | ✅ |
 
 ### Subjects
 

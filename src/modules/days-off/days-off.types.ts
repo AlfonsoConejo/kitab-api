@@ -19,3 +19,8 @@ export interface DayOffDto {
   createdAt: string | Date;
   updatedAt: string | Date;
 }
+
+export interface PeriodDateRangeRow {
+  start_date: string | Date;
+  end_date: string | Date;
+}
