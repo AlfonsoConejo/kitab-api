@@ -1,7 +1,10 @@
+export type DayOffType = 'day_off' | 'vacation';
+
 export interface DayOffRow {
   id: number;
   period_id: number;
   name: string;
+  type: DayOffType;
   start_date: string | Date;
   end_date: string | Date;
   notes: string | null;
@@ -13,6 +16,7 @@ export interface DayOffDto {
   id: number;
   periodId: number;
   name: string;
+  type: DayOffType;
   startDate: string;
   endDate: string;
   notes: string | null;

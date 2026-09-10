@@ -23,6 +23,12 @@ export const createDayOffSchema = z
       .min(1, { error: 'El nombre es obligatorio.' })
       .max(60, { error: 'El nombre debe tener máximo 60 caracteres.' }),
 
+    type: z
+      .enum(['day_off', 'vacation'], {
+        error: 'El tipo de descanso no es válido.',
+      })
+      .default('day_off'),
+
     startDate: isoDateSchema(
       'La fecha de inicio es obligatoria.',
       'La fecha de inicio no es válida.',
@@ -47,6 +53,13 @@ export const createDayOffSchema = z
         code: 'custom',
         path: ['endDate'],
         message: 'La fecha de término no puede ser anterior a la fecha de inicio.',
+      });
+    }
+    if (value.type === 'day_off' && value.startDate !== value.endDate) {
+      context.addIssue({
+        code: 'custom',
+        path: ['endDate'],
+        message: 'Un día libre debe iniciar y terminar en la misma fecha.',
       });
     }
   });

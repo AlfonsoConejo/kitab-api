@@ -7,6 +7,7 @@ export const toDayOffDto = (dayOff: DayOffRow): DayOffDto => ({
   id: dayOff.id,
   periodId: dayOff.period_id,
   name: dayOff.name.trim(),
+  type: dayOff.type,
   startDate: toDateOnly(dayOff.start_date),
   endDate: toDateOnly(dayOff.end_date),
   notes: dayOff.notes?.trim() || null,
@@ -17,6 +18,7 @@ export const toDayOffDto = (dayOff: DayOffRow): DayOffDto => ({
 // Convierte un día libre validado al formato snake_case de PostgreSQL.
 export const toDayOffRecord = (input: CreateDayOffInput) => ({
   name: input.name,
+  type: input.type,
   start_date: input.startDate,
   end_date: input.endDate,
   notes: input.notes,
