@@ -1,3 +1,15 @@
+/** Valores admitidos para el tipo de una clase. */
+export const CLASS_TYPES = ['theory', 'laboratory', 'workshop'] as const;
+
+/** Tipos de clase admitidos por una materia. */
+export type ClassType = (typeof CLASS_TYPES)[number];
+
+/** Valores admitidos para la modalidad de una clase. */
+export const CLASS_MODES = ['onsite', 'online'] as const;
+
+/** Modalidades admitidas para una clase. */
+export type ClassMode = (typeof CLASS_MODES)[number];
+
 export interface SubjectRow {
   id: number;
   period_id: number;
@@ -19,9 +31,9 @@ export interface ClassRow {
   days: number[];
   start_time: string;
   end_time: string;
-  mode: 'onsite' | 'online';
+  mode: ClassMode;
   classroom: string | null;
-  type: 'theory' | 'laboratory' | 'workshop';
+  type: ClassType;
 }
 
 export interface SubjectDto {
@@ -43,7 +55,7 @@ export interface ClassDto {
   days: number[];
   startTime: string;
   endTime: string;
-  mode: 'onsite' | 'online';
+  mode: ClassMode;
   classroom: string | null;
-  type: 'theory' | 'laboratory' | 'workshop';
+  type: ClassType;
 }

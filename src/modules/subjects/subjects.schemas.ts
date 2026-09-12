@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { positiveIdSchema } from '../../shared/validation/positive-id.schema.js';
 import { isoDateSchema } from '../../shared/validation/iso-date.schema.js';
-import type { SubjectRow } from './subjects.types.js';
+import { CLASS_MODES, CLASS_TYPES, type SubjectRow } from './subjects.types.js';
 import { toDateOnly } from '../../shared/utils/date.js';
 
 const subjectIdMessage = 'El ID de la materia no es válido.';
@@ -48,11 +48,7 @@ export const classSchema = z
       ),
 
     type: z.enum(
-      [
-        'theory',
-        'laboratory',
-        'workshop'
-      ],
+      CLASS_TYPES,
       {
         error:
           "Las clases solo pueden ser de tipo 'theory', 'laboratory' o 'workshop'."
@@ -60,10 +56,7 @@ export const classSchema = z
     ),
 
     mode: z.enum(
-      [
-        'onsite',
-        'online'
-      ],
+      CLASS_MODES,
       {
         error:
           "Las modalidades solo pueden ser 'onsite' o 'online'."

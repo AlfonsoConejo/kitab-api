@@ -3,6 +3,7 @@ import {
   createPeriod,
   createSubject,
   deletePeriod,
+  getCalendarEvents,
   getClassesByPeriod,
   getPeriod,
   getPeriods,
@@ -28,5 +29,8 @@ router.route('/:periodId/subjects')
   
 router.route('/:periodId/classes')
   .get(authMiddleware, getClassesByPeriod);
+
+router.route('/:periodId/calendar-events')
+  .get(authMiddleware, getCalendarEvents);
 
 export default router;

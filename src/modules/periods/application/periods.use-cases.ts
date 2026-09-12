@@ -1,14 +1,29 @@
-import type { CreateSubjectInput, PeriodInput } from '../periods.schemas.js';
+import type {
+  CalendarEventsQuery,
+  CreateSubjectInput,
+  PeriodInput,
+} from '../periods.schemas.js';
 import { parseSubjectForPeriod } from '../periods.schemas.js';
 import { toClassDto, toPeriodDto, toSubjectDto } from '../periods.mapper.js';
-import { PgPeriodsRepository } from '../infrastructure/pg-periods.repository.js';
+import type { PeriodsRepository } from './periods.repository.js';
 import { withTransaction } from '../../../shared/database/transaction.js';
+import { PgDaysOffRepository } from '../../days-off/infrastructure/pg-days-off.repository.js';
+import { toDayOffDto } from '../../days-off/days-off.mapper.js';
+import { buildCalendarEvents } from './calendar-events.service.js';
 
 export class PeriodsUseCases {
-  // Recibe el repositorio que proporciona acceso a los datos de períodos.
+  // Repositorios utilizados por los casos de uso.
+  private readonly periods: PeriodsRepository;
+  private readonly daysOff: PgDaysOffRepository;
+
+  // Recibe los repositorios que proporcionan acceso a los datos.
   constructor(
-    private readonly periods: PgPeriodsRepository
-  ) {}
+    periods: PeriodsRepository,
+    daysOff: PgDaysOffRepository = new PgDaysOffRepository(),
+  ) {
+    this.periods = periods;
+    this.daysOff = daysOff;
+  }
 
   // Crea un período y lo transforma al formato público de la API.
   async createPeriod(userId: number, input: PeriodInput) {
@@ -67,6 +82,26 @@ export class PeriodsUseCases {
     const classes = await this.periods.listClasses(periodId);
 
     return classes.map(toClassDto);
+  }
+
+  // Devuelve ocurrencias de clases y descansos resueltos para el rango solicitado.
+  async listCalendarEvents(
+    userId: number,
+    periodId: number,
+    range: CalendarEventsQuery,
+  ) {
+    const period = await this.periods.getOwnedPeriod(periodId, userId);
+    const [classes, daysOff] = await Promise.all([
+      this.periods.listCalendarClasses(periodId),
+      this.daysOff.listByPeriod(periodId),
+    ]);
+
+    return buildCalendarEvents({
+      period,
+      classes,
+      breaks: daysOff.map(toDayOffDto),
+      range,
+    });
   }
 
   // Crea una materia y sus clases de forma atómica después de validar sus fechas contra el período.

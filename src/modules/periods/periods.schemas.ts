@@ -28,6 +28,29 @@ export const periodIdSchema = z.object({
   periodId: positiveIdSchema('El ID del período no es válido.')
 });
 
+export const calendarEventsQuerySchema = z
+  .object({
+    startDate: isoDateSchema(
+      'La fecha inicial es obligatoria.',
+      'La fecha inicial no es válida.',
+    ),
+    endDate: isoDateSchema(
+      'La fecha final es obligatoria.',
+      'La fecha final no es válida.',
+    ),
+  })
+  .superRefine((value, context) => {
+    if (value.startDate > value.endDate) {
+      context.addIssue({
+        code: 'custom',
+        path: ['endDate'],
+        message: 'La fecha final no puede ser anterior a la fecha inicial.',
+      });
+    }
+  });
+
+export type CalendarEventsQuery = z.infer<typeof calendarEventsQuerySchema>;
+
 // Valida los datos necesarios para crear o actualizar un período académico.
 export const periodSchema = z
   .object({

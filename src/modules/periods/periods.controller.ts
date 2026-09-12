@@ -2,7 +2,11 @@ import type { Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { getUserIdOrRespond, type AuthenticatedRequest } from '../../shared/http/authenticated-request.js';
 import { sendErrorResponse } from '../../shared/http/error-response.js';
-import { periodIdSchema, periodSchema } from './periods.schemas.js';
+import {
+  calendarEventsQuerySchema,
+  periodIdSchema,
+  periodSchema,
+} from './periods.schemas.js';
 import { PeriodsUseCases } from './application/periods.use-cases.js';
 import { PgPeriodsRepository } from './infrastructure/pg-periods.repository.js';
 
@@ -213,6 +217,28 @@ export async function getClassesByPeriod(req: AuthenticatedRequest, res: Respons
     return res.status(200).json({
       success: true,
       data: classes
+    });
+  } catch (error) {
+    return sendError(res, error);
+  }
+}
+
+// Genera los eventos de calendario para un rango de fechas del período.
+export async function getCalendarEvents(req: AuthenticatedRequest, res: Response) {
+  const userId = userIdFrom(req, res);
+
+  if (!userId) {
+    return;
+  }
+
+  try {
+    const periodId = periodIdFrom(req);
+    const range = calendarEventsQuerySchema.parse(req.query);
+    const calendarEvents = await useCases.listCalendarEvents(userId, periodId, range);
+
+    return res.status(200).json({
+      success: true,
+      data: calendarEvents,
     });
   } catch (error) {
     return sendError(res, error);

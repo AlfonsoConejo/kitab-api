@@ -1,14 +1,15 @@
 import type { Pool, PoolClient } from 'pg';
 import { pool } from '../../../config/db.js';
 import { PeriodNotFoundError } from '../periods.errors.js';
-import type { PeriodRow } from '../periods.types.js';
+import type { CalendarClassRow, PeriodRow } from '../periods.types.js';
 import type { ClassRow, SubjectRow } from '../../subjects/subjects.types.js';
 import type { CreateSubjectInput, PeriodInput } from '../periods.schemas.js';
 import { toPeriodRecord, toSubjectRecord } from '../periods.mapper.js';
+import type { PeriodsRepository } from '../application/periods.repository.js';
 
 type DatabaseClient = Pool | PoolClient;
 
-export class PgPeriodsRepository {
+export class PgPeriodsRepository implements PeriodsRepository {
   // Recibe el pool de PostgreSQL; permite sustituirlo por un doble en pruebas.
   constructor(readonly database: Pool = pool) {}
 
@@ -104,6 +105,22 @@ export class PgPeriodsRepository {
        ORDER BY (SELECT MIN(day) FROM unnest(c.days) AS day), c.start_time, s.name, c.id`,
       [periodId],
     );
+    return result.rows;
+  }
+
+  // Obtiene las clases con los datos de materia necesarios para generar eventos del calendario.
+  async listCalendarClasses(periodId: number): Promise<CalendarClassRow[]> {
+    const result = await this.database.query<CalendarClassRow>(
+      `SELECT c.id, c.subject_id, s.name AS subject_name, s.color AS subject_color,
+              s.start_date AS subject_start_date, s.end_date AS subject_end_date,
+              c.days, c.start_time, c.end_time, c.mode, c.classroom, c.type
+       FROM classes c
+       JOIN subjects s ON s.id = c.subject_id
+       WHERE s.period_id = $1
+       ORDER BY c.start_time, s.name, c.id`,
+      [periodId],
+    );
+
     return result.rows;
   }
 
