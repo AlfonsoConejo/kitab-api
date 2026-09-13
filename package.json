@@ -9,6 +9,7 @@
     "build": "tsc --project tsconfig.json",
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "test": "vitest",
+    "test:integration": "vitest --config vitest.integration.config.ts",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage"
   },

@@ -1,9 +1,19 @@
 import { defineConfig } from 'vitest/config';
 
-export default defineConfig({
+export function createVitestConfig(integration = false) {
+  return defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    include: integration
+      ? ['src/**/*.integration.test.ts']
+      : ['src/**/*.test.ts'],
+    exclude: integration ? [] : ['src/**/*.integration.test.ts'],
+    env: integration
+      ? {
+          KITAB_INTEGRATION_TESTS: 'true',
+        }
+      : {},
     coverage: {
       reporter: ['text', 'html'],
       exclude: ['node_modules/', 'test/'],
@@ -18,4 +28,7 @@ export default defineConfig({
       '@': '/src',
     },
   },
-});
+  });
+}
+
+export default createVitestConfig();
