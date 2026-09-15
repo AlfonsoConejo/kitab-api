@@ -6,7 +6,7 @@ export async function initJobs(): Promise<void> {
   console.log('Inicializando cronjobs...');
 
   cron.schedule('0 0 * * *', async () => {
-    console.log('Ejecutando limpieza programada...');
+    console.log('Ejecutando limpieza ...');
 
     try {
       const result = await cleanupExpiredData();

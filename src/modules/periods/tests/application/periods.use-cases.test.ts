@@ -144,6 +144,19 @@ describe('Pruebas de los casos de uso de períodos', () => {
     });
   });
 
+  it('no recupera un período que no existe o no pertenece al usuario', async () => {
+    const repository = createPeriodsRepositoryMock({
+      getOwnedPeriod: vi.fn().mockRejectedValue(new PeriodNotFoundError()),
+    });
+
+    const useCases = new PeriodsUseCases(repository);
+
+    await expect(useCases.getPeriod(100, 12))
+      .rejects.toBeInstanceOf(PeriodNotFoundError);
+
+    expect(repository.getOwnedPeriod).toHaveBeenCalledWith(12, 100);
+  });
+
   it('actualiza un periodo y obtener su DTO actualizado', async () => {
     const input: PeriodInput = {
       name: 'Agosto-Diciembre 2026',
