@@ -1,9 +1,9 @@
 import { toDayOffDto } from '../days-off.mapper.js';
 import { parseDayOffForPeriod } from '../days-off.schemas.js';
-import { PgDaysOffRepository } from '../infrastructure/pg-days-off.repository.js';
+import type { DaysOffRepository } from './days-off.repository.js';
 
 export class DaysOffUseCases {
-  constructor(private readonly daysOff: PgDaysOffRepository) {}
+  constructor(private readonly daysOff: DaysOffRepository) {}
 
   // Comprueba la propiedad del período y devuelve sus días libres.
   async listByPeriod(userId: number, periodId: number) {

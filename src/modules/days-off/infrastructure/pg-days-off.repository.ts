@@ -4,8 +4,9 @@ import { DayOffNotFoundError, DayOffPeriodNotFoundError } from '../days-off.erro
 import { toDayOffRecord } from '../days-off.mapper.js';
 import type { CreateDayOffInput } from '../days-off.schemas.js';
 import type { DayOffRow, PeriodDateRangeRow } from '../days-off.types.js';
+import type { DaysOffRepository } from '../application/days-off.repository.js';
 
-export class PgDaysOffRepository {
+export class PgDaysOffRepository implements DaysOffRepository {
   // Recibe el pool para poder sustituirlo por un doble en pruebas.
   constructor(private readonly database: Pool = pool) {}
 
