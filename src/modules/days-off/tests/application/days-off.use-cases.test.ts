@@ -71,6 +71,18 @@ describe('DaysOffUseCases', () => {
     expect(result).toEqual(toExpectedDto(dayOff));
   });
 
+  it('no consulta un descanso si el período no pertenece al usuario', async () => {
+    const repository = createDaysOffRepositoryMock({
+      getOwnedPeriod: vi.fn().mockRejectedValue(new DayOffPeriodNotFoundError()),
+    });
+    const useCases = new DaysOffUseCases(repository);
+
+    await expect(useCases.getById(100, 12, 25))
+      .rejects.toBeInstanceOf(DayOffPeriodNotFoundError);
+
+    expect(repository.getByIdAndPeriod).not.toHaveBeenCalled();
+  });
+
   it('crea un descanso validado dentro del período y devuelve su DTO', async () => {
     const repository = createDaysOffRepositoryMock({
       getOwnedPeriod: vi.fn().mockResolvedValue(period),
@@ -236,6 +248,17 @@ describe('DaysOffUseCases', () => {
       .rejects.toBeInstanceOf(DayOffPeriodNotFoundError);
 
     expect(repository.deleteByIdAndPeriod).not.toHaveBeenCalled();
+  });
+
+  it('propaga el error cuando el descanso a eliminar no pertenece al período', async () => {
+    const repository = createDaysOffRepositoryMock({
+      getOwnedPeriod: vi.fn().mockResolvedValue(period),
+      deleteByIdAndPeriod: vi.fn().mockRejectedValue(new DayOffNotFoundError()),
+    });
+    const useCases = new DaysOffUseCases(repository);
+
+    await expect(useCases.delete(100, 12, 25))
+      .rejects.toBeInstanceOf(DayOffNotFoundError);
   });
 
   it('detiene la operación cuando el período no pertenece al usuario', async () => {
