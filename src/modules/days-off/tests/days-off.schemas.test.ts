@@ -48,6 +48,15 @@ describe('createDayOffSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('elimina espacios alrededor de las notas con contenido', () => {
+    const result = createDayOffSchema.parse({
+      ...validDayOff,
+      notes: '  Sin clases  ',
+    });
+
+    expect(result.notes).toBe('Sin clases');
+  });
+
   it.each([
     ['nombre vacío', { name: '   ' }, 'El nombre es obligatorio.'],
     ['nombre mayor de 60 caracteres', { name: 'a'.repeat(61) }, 'El nombre debe tener máximo 60 caracteres.'],
@@ -125,6 +134,23 @@ describe('parseDayOffForPeriod', () => {
       startDate: '2026-08-01',
       endDate: '2026-12-15',
     }, period);
+
+    expect(result).toMatchObject({
+      startDate: '2026-08-01',
+      endDate: '2026-12-15',
+    });
+  });
+
+  it('acepta fechas del período recibidas como objetos Date de PostgreSQL', () => {
+    const result = parseDayOffForPeriod({
+      ...validDayOff,
+      type: 'vacation',
+      startDate: '2026-08-01',
+      endDate: '2026-12-15',
+    }, {
+      start_date: new Date('2026-08-01T00:00:00.000Z'),
+      end_date: new Date('2026-12-15T00:00:00.000Z'),
+    });
 
     expect(result).toMatchObject({
       startDate: '2026-08-01',
