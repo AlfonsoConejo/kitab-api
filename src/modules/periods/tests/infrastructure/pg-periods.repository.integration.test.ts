@@ -1,16 +1,24 @@
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { pool } from '../../../../config/db.js';
 import { PgPeriodsRepository } from '../../infrastructure/pg-periods.repository.js';
 import type { PeriodInput } from '../../periods.schemas.js';
 import type { PeriodRow } from '../../periods.types.js';
 import { PeriodNotFoundError } from '../../periods.errors.js';
 
+let createdPeriodIds: number[] = [];
+let createdUserIds: number[] = [];
+let emailSequence = 0;
+
 describe('PgPeriodsRepository - integración', () => {
   const repository = new PgPeriodsRepository(pool);
 
-  beforeEach(async () => {
-    await pool.query('DELETE FROM academic_periods');
-    await pool.query('DELETE FROM users');
+  beforeEach(() => {
+    createdPeriodIds = [];
+    createdUserIds = [];
+  });
+
+  afterEach(async () => {
+    await deleteCreatedRecords();
   });
 
   afterAll(async () => {
@@ -27,12 +35,13 @@ describe('PgPeriodsRepository - integración', () => {
       [
         'Timothée',
         'Chalamet',
-        'tim.chalamet@hollywood.com',
+        createUniqueEmail('tim.chalamet@hollywood.com'),
         'fake-password-hash',
       ],
     );
 
     const userId = userResult.rows[0]!.id;
+    createdUserIds.push(userId);
 
     const input: PeriodInput = {
       name: 'Agosto-Diciembre 2026',
@@ -42,6 +51,7 @@ describe('PgPeriodsRepository - integración', () => {
     };
 
     const result = await repository.createPeriod(input, userId);
+    createdPeriodIds.push(result.id);
 
     expect(result).toMatchObject({
       name: input.name,
@@ -182,10 +192,13 @@ async function createTestUser(email: string): Promise<number> {
       VALUES ($1, $2, $3, $4)
       RETURNING id
     `,
-    ['Test', 'User', email, 'fake-password-hash'],
+    ['Test', 'User', createUniqueEmail(email), 'fake-password-hash'],
   );
 
-  return result.rows[0]!.id;
+  const userId = result.rows[0]!.id;
+  createdUserIds.push(userId);
+
+  return userId;
 }
 
 async function createTestPeriod(
@@ -198,7 +211,32 @@ async function createTestPeriod(
     color: '#2563EB',
   },
 ): Promise<PeriodRow> {
-  return repository.createPeriod(input, userId);
+  const period = await repository.createPeriod(input, userId);
+  createdPeriodIds.push(period.id);
+
+  return period;
+}
+
+async function deleteCreatedRecords() {
+  if (createdPeriodIds.length) {
+    await pool.query(
+      'DELETE FROM academic_periods WHERE id = ANY($1::int[])',
+      [createdPeriodIds],
+    );
+  }
+
+  if (createdUserIds.length) {
+    await pool.query(
+      'DELETE FROM users WHERE id = ANY($1::int[])',
+      [createdUserIds],
+    );
+  }
+}
+
+function createUniqueEmail(email: string): string {
+  const [localPart, domain] = email.split('@');
+
+  return `${localPart}+${process.pid}-${Date.now()}-${emailSequence++}@${domain}`;
 }
 
 function expectDatabaseDate(
