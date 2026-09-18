@@ -98,6 +98,14 @@ describe('PgAuthRepository - integración', () => {
     expect(hashResult.rows[0]?.token_hash).toBe(hashToken(refreshToken));
   });
 
+  it('devuelve null al intentar bloquear un refresh token inexistente', async () => {
+    const token = await withTransaction(pool, (client) => {
+      return repository.getRefreshTokenForUpdate('missing-refresh-token', client);
+    });
+
+    expect(token).toBeNull();
+  });
+
   it('marca, revoca y desactiva una sesión con sus refresh tokens', async () => {
     const user = await createTestUser();
     const firstToken = 'refresh-token-first';
@@ -151,6 +159,36 @@ describe('PgAuthRepository - integración', () => {
     expect(activeToken.activeUserId).toBe(user.id);
     expect(activeToken.revoked).toEqual({ session_id: sessionId });
     expect(afterRevocation).toEqual({ active: null, userId: null });
+  });
+
+  it('devuelve null al revocar un refresh token inexistente o ya revocado', async () => {
+    const missingToken = await withTransaction(pool, (client) => {
+      return repository.revokeRefreshToken('missing-refresh-token', client);
+    });
+    const user = await createTestUser();
+    const refreshToken = 'refresh-token-already-revoked';
+    await createSessionWithRefresh(user.id, refreshToken);
+
+    const secondRevocation = await withTransaction(pool, async (client) => {
+      await repository.revokeRefreshToken(refreshToken, client);
+      return repository.revokeRefreshToken(refreshToken, client);
+    });
+
+    expect(missingToken).toBeNull();
+    expect(secondRevocation).toBeNull();
+  });
+
+  it('no devuelve el usuario de un refresh token cuando su sesión está inactiva', async () => {
+    const user = await createTestUser();
+    const refreshToken = 'refresh-token-inactive-session';
+    const sessionId = await createSessionWithRefresh(user.id, refreshToken);
+
+    const activeUserId = await withTransaction(pool, async (client) => {
+      await repository.deactivateSession(sessionId, client);
+      return repository.getActiveRefreshTokenUserId(refreshToken, client);
+    });
+
+    expect(activeUserId).toBeNull();
   });
 
   it('revoca todos los refresh tokens y desactiva todas las sesiones del usuario', async () => {
