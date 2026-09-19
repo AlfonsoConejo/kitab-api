@@ -57,6 +57,17 @@ describe('PgAuthRepository - integración', () => {
     await expect(repository.findUserById(999999)).resolves.toBeNull();
   });
 
+  it('rechaza la creación de un usuario con correo duplicado mediante 23505', async () => {
+    const user = await createTestUser();
+
+    await expect(repository.createUser({
+      first_name: 'Another',
+      last_name: 'User',
+      email: user.email,
+      password_hash: 'another-fake-password-hash',
+    })).rejects.toMatchObject({ code: '23505' });
+  });
+
   it('crea una sesión con su refresh token hasheado y bloqueable', async () => {
     const user = await createTestUser();
     const refreshToken = 'refresh-token-for-lock-test';
@@ -98,6 +109,47 @@ describe('PgAuthRepository - integración', () => {
     expect(hashResult.rows[0]?.token_hash).toBe(hashToken(refreshToken));
   });
 
+  it('crea refresh tokens con expiración aproximada de siete días', async () => {
+    const user = await createTestUser();
+    const beforeCreation = Date.now();
+    const sessionId = await createSessionWithRefresh(user.id, 'refresh-token-expiration');
+    const afterCreation = Date.now();
+    const result = await pool.query<{ expires_at: Date | string }>(
+      'SELECT expires_at FROM refresh_tokens WHERE session_id = $1',
+      [sessionId],
+    );
+    const expiresAt = new Date(result.rows[0]!.expires_at).getTime();
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    const tolerance = 2_000;
+
+    expect(expiresAt).toBeGreaterThanOrEqual(beforeCreation + sevenDays - tolerance);
+    expect(expiresAt).toBeLessThanOrEqual(afterCreation + sevenDays + tolerance);
+  });
+
+  it('bloquea un refresh token mientras otra transacción lo está consumiendo', async () => {
+    const user = await createTestUser();
+    const refreshToken = 'refresh-token-concurrent-lock';
+    await createSessionWithRefresh(user.id, refreshToken);
+    const firstClient = await pool.connect();
+    const secondClient = await pool.connect();
+
+    try {
+      await firstClient.query('BEGIN');
+      await repository.getRefreshTokenForUpdate(refreshToken, firstClient);
+
+      await secondClient.query('BEGIN');
+      await secondClient.query("SET LOCAL lock_timeout = '100ms'");
+
+      await expect(repository.getRefreshTokenForUpdate(refreshToken, secondClient))
+        .rejects.toMatchObject({ code: '55P03' });
+    } finally {
+      await secondClient.query('ROLLBACK');
+      secondClient.release();
+      await firstClient.query('ROLLBACK');
+      firstClient.release();
+    }
+  });
+
   it('devuelve null al intentar bloquear un refresh token inexistente', async () => {
     const token = await withTransaction(pool, (client) => {
       return repository.getRefreshTokenForUpdate('missing-refresh-token', client);
@@ -112,13 +164,15 @@ describe('PgAuthRepository - integración', () => {
     const sessionId = await createSessionWithRefresh(user.id, firstToken);
     const secondToken = 'refresh-token-second';
 
-    await withTransaction(pool, async (client) => {
+    const updatedRefreshToken = await withTransaction(pool, async (client) => {
       await repository.createRefreshToken(sessionId, secondToken, client);
       const token = await repository.getRefreshTokenForUpdate(firstToken, client);
 
       await repository.markRefreshTokenUsed(token!.id, client);
       await repository.revokeSessionRefreshTokens(sessionId, client);
       await repository.deactivateSession(sessionId, client);
+
+      return repository.getRefreshTokenForUpdate(firstToken, client);
     });
 
     const tokens = await pool.query<{ is_used: boolean; is_revoked: boolean }>(
@@ -136,6 +190,11 @@ describe('PgAuthRepository - integración', () => {
       { is_used: false, is_revoked: true },
     ]);
     expect(session.rows[0]?.is_active).toBe(false);
+    expect(updatedRefreshToken).toMatchObject({
+      is_used: true,
+      is_revoked: true,
+      is_active: false,
+    });
   });
 
   it('encuentra y revoca un refresh token activo de forma individual', async () => {
