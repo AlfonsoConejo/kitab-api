@@ -7,7 +7,7 @@ import { InvalidCredentialsError, LogoutForbiddenError, RefreshTokenError, UserA
 import { toUserDto, toUserRecord } from '../auth.mapper.js';
 import type { LoginInput, RegisterInput } from '../auth.schemas.js';
 import type { SessionMetadata } from '../auth.types.js';
-import { PgAuthRepository } from '../infrastructure/pg-auth.repository.js';
+import type { AuthRepository } from './auth.repository.js';
 
 const refreshErrorCodes = {
   notFound: ['Refresh token inválido', 'REFRESH_TOKEN_NOT_FOUND'],
@@ -19,7 +19,7 @@ const refreshErrorCodes = {
 
 export class AuthUseCases {
   // Recibe el repositorio que concentra el acceso a usuarios, sesiones y refresh tokens.
-  constructor(private readonly auth: PgAuthRepository) {}
+  constructor(private readonly auth: AuthRepository) {}
 
   // Registra un usuario nuevo después de comprobar su correo y cifrar su contraseña.
   async register(input: RegisterInput) {

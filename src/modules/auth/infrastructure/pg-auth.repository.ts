@@ -1,11 +1,12 @@
 import type { Pool, PoolClient } from 'pg';
 import { pool } from '../../../config/db.js';
 import { hashToken } from '../../../services/token.service.js';
+import type { AuthRepository } from '../application/auth.repository.js';
 import type { RefreshTokenRow, SessionMetadata, UserRow } from '../auth.types.js';
 
 type DatabaseClient = Pool | PoolClient;
 
-export class PgAuthRepository {
+export class PgAuthRepository implements AuthRepository {
   constructor(readonly database: Pool = pool) {}
 
   async findUserByEmail(email: string, client: DatabaseClient = this.database): Promise<UserRow | null> {
