@@ -1,4 +1,4 @@
-name: Backend CI pipeline
+name: Backend CI/CD Pipeline
 
 on:
   push:
@@ -8,9 +8,15 @@ on:
     branches:
       - main
 
+concurrency:
+  group: backend-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  ci:
+    name: Test and build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -25,15 +31,28 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint
+        run: npm run lint
+
       - name: Type check
         run: npm run typecheck
 
       - name: Run tests
         run: npm test -- --run
 
-      - name: Build project
+      - name: Build
         run: npm run build
-      
-      - name: Deploy to Render
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+
+  deploy:
+    name: Deploy to Render
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Trigger Render deploy
+        run: |
+          curl --fail --silent --show-error \
+            -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
