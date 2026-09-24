@@ -1,12 +1,16 @@
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
+import swaggerUi from 'swagger-ui-express';
+import { openApiDocument } from './docs/openapi.js';
 import { pool } from './config/db.js';
 import { csrfOriginMiddleware } from './middleware/csrf-origin.middleware.js';
+import { getAllowedOrigins } from './shared/http/allowed-origins.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import daysOffRoutes from './modules/days-off/days-off.routes.js';
 import periodRoutes from './modules/periods/periods.routes.js';
 import subjectsRoutes from './modules/subjects/subjects.routes.js';
+
 
 type DatabaseHealth = {
   status: 'unknown' | 'connected' | 'disconnected';
@@ -15,11 +19,18 @@ type DatabaseHealth = {
 };
 
 const app = express();
+const allowedOrigins = getAllowedOrigins();
+
+app.use(
+  '/api-docs',
+  swaggerUi.serve,
+  swaggerUi.setup(openApiDocument),
+);
 
 app.set('trust proxy', true);
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL,
+  origin: allowedOrigins,
   credentials: true,
 }));
 app.use(express.json());

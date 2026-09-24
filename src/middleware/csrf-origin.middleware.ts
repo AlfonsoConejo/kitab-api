@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { getAllowedOrigins, normalizeOrigin } from '../shared/http/allowed-origins.js';
 
 const unsafeMethods = new Set([
   'POST',
@@ -6,26 +7,6 @@ const unsafeMethods = new Set([
   'PATCH',
   'DELETE',
 ]);
-
-// Convierte una URL a su origen estándar.
-// Ejemplo: https://kitab.app/ → https://kitab.app
-function normalizeOrigin(origin: string): string | null {
-  try {
-    return new URL(origin).origin;
-  } catch {
-    return null;
-  }
-}
-
-// Lee y normaliza la lista de orígenes permitidos desde FRONTEND_URL.
-function getAllowedOrigins(): string[] {
-  return (process.env.FRONTEND_URL || '')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean)
-    .map(normalizeOrigin)
-    .filter((origin): origin is string => origin !== null);
-}
 
 // Bloquea solicitudes que modifican datos cuando su encabezado Origin no está permitido.
 export function csrfOriginMiddleware(
@@ -41,7 +22,7 @@ export function csrfOriginMiddleware(
 
   if (!allowedOrigins.length) {
     console.error(
-      'FRONTEND_URL no está configurado para validar el origen CSRF',
+      'ALLOWED_ORIGINS no está configurado para validar el origen CSRF',
     );
 
     return response.status(500).json({

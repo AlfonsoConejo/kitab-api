@@ -21,7 +21,7 @@ describe('auth routes CSRF protection', () => {
   let baseUrl: string;
 
   beforeAll(async () => {
-    vi.stubEnv('FRONTEND_URL', allowedOrigin);
+    vi.stubEnv('ALLOWED_ORIGINS', allowedOrigin);
 
     server = app.listen(0);
     await new Promise<void>((resolve) => server.once('listening', resolve));

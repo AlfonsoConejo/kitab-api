@@ -8,7 +8,7 @@ describe('days-off routes CSRF protection', () => {
   let baseUrl: string;
 
   beforeAll(async () => {
-    vi.stubEnv('FRONTEND_URL', 'https://app.kitab.test');
+    vi.stubEnv('ALLOWED_ORIGINS', 'https://app.kitab.test');
 
     server = app.listen(0);
     await new Promise<void>((resolve) => server.once('listening', resolve));

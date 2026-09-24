@@ -93,4 +93,4 @@ The API returns appropriate HTTP status codes and JSON error messages for invali
 
 The API uses JWT access tokens for protected endpoints and HttpOnly refresh token cookies for session renewal.
 
-All state-changing `/api` requests must also include an allowed `Origin` header configured through `FRONTEND_URL`.
+All state-changing `/api` requests must also include an allowed `Origin` header configured through `ALLOWED_ORIGINS`.
