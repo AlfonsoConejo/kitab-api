@@ -143,6 +143,23 @@ describe('auth routes', () => {
     await expect(response.json()).resolves.toEqual({ success: false, message: 'El usuario ya existe' });
   });
 
+  it('responde 500 si ocurre un error inesperado al registrar', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    registerMock.mockRejectedValue(new Error('database unavailable'));
+
+    const response = await fetch(`${baseUrl}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(validRegistration),
+    });
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      success: false, message: 'Error interno del servidor',
+    });
+    errorSpy.mockRestore();
+  });
+
   it('inicia sesión, emite cookies HttpOnly y no expone tokens en el cuerpo', async () => {
     loginMock.mockResolvedValue({
       user,
@@ -184,6 +201,37 @@ describe('auth routes', () => {
     await expect(response.json()).resolves.toEqual({
       success: false, message: 'Usuario o contraseña incorrectos',
     });
+  });
+
+  it('rechaza un login con payload inválido antes de llamar al caso de uso', async () => {
+    const response = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: '', password: '' }),
+    });
+
+    expect(loginMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      success: false, message: 'Todos los campos son obligatorios',
+    });
+  });
+
+  it('responde 500 si ocurre un error inesperado durante el login', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    loginMock.mockRejectedValue(new Error('database unavailable'));
+
+    const response = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: user.email, password: 'secure-password' }),
+    });
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      success: false, message: 'Error interno del servidor',
+    });
+    errorSpy.mockRestore();
   });
 
   it('devuelve el perfil del usuario autenticado', async () => {
@@ -242,6 +290,22 @@ describe('auth routes', () => {
     await expect(response.json()).resolves.toEqual({ success: false, message: 'Refresh token expirado' });
   });
 
+  it('responde 500 ante un error inesperado al renovar el token', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    refreshMock.mockRejectedValue(new Error('database unavailable'));
+
+    const response = await fetch(`${baseUrl}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { Cookie: 'refreshToken=refresh-token' },
+    });
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      success: false, message: 'Error interno del servidor',
+    });
+    errorSpy.mockRestore();
+  });
+
   it('cierra la sesión actual y elimina las cookies', async () => {
     const response = await fetch(`${baseUrl}/api/auth/logout`, {
       method: 'POST',
@@ -249,6 +313,16 @@ describe('auth routes', () => {
     });
 
     expect(logoutMock).toHaveBeenCalledWith('refresh-token', undefined);
+    expect(response.headers.get('set-cookie')).toContain('accessToken=;');
+    expect(response.headers.get('set-cookie')).toContain('refreshToken=;');
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ success: true, message: 'Sesión cerrada exitosamente' });
+  });
+
+  it('permite cerrar sesión sin refresh token y limpia las cookies', async () => {
+    const response = await fetch(`${baseUrl}/api/auth/logout`, { method: 'POST' });
+
+    expect(logoutMock).toHaveBeenCalledWith(undefined, undefined);
     expect(response.headers.get('set-cookie')).toContain('accessToken=;');
     expect(response.headers.get('set-cookie')).toContain('refreshToken=;');
     expect(response.status).toBe(200);
