@@ -81,7 +81,7 @@ export class PgSubjectsRepository {
     const result = await client.query<SubjectRow>(
       `INSERT INTO subjects (period_id, name, teacher, color, start_date, end_date)
        VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, period_id, name, teacher, color, start_date, end_date, created_at, updated_at`,
+       RETURNING id, period_id, name, teacher, color, start_date, end_date`,
       [
         periodId,
         subject.name,
