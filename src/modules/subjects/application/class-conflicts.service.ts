@@ -3,6 +3,22 @@ import type { ClassDto } from '../subjects.types.js';
 
 type SchedulableClass = Pick<ConflictClassInput, 'days' | 'startTime' | 'endTime'>;
 
+/** Ordena resultados con el mismo criterio cronológico usado al listar clases. */
+function compareBySchedule(
+  firstDays: number[],
+  firstStartTime: string,
+  secondDays: number[],
+  secondStartTime: string,
+) {
+  const dayDifference = Math.min(...firstDays) - Math.min(...secondDays);
+
+  if (dayDifference !== 0) {
+    return dayDifference;
+  }
+
+  return firstStartTime.localeCompare(secondStartTime);
+}
+
 export function overlappingDays(
   firstClass: SchedulableClass,
   secondClass: SchedulableClass,
@@ -43,7 +59,25 @@ export function findInternalConflicts(classes: ConflictClassInput[]) {
     }
   }
 
-  return conflicts;
+  return conflicts.sort((firstConflict, secondConflict) => {
+    const firstStartTime = [firstConflict.classAStartTime, firstConflict.classBStartTime]
+      .sort()[0]!;
+    const secondStartTime = [secondConflict.classAStartTime, secondConflict.classBStartTime]
+      .sort()[0]!;
+    const scheduleDifference = compareBySchedule(
+      firstConflict.conflictDays,
+      firstStartTime,
+      secondConflict.conflictDays,
+      secondStartTime,
+    );
+
+    if (scheduleDifference !== 0) {
+      return scheduleDifference;
+    }
+
+    return String(firstConflict.classA).localeCompare(String(secondConflict.classA))
+      || String(firstConflict.classB).localeCompare(String(secondConflict.classB));
+  });
 }
 
 export function findExternalConflicts(
@@ -68,5 +102,19 @@ export function findExternalConflicts(
     }
   }
 
-  return conflicts;
+  return conflicts.sort((firstConflict, secondConflict) => {
+    const scheduleDifference = compareBySchedule(
+      firstConflict.conflictDays,
+      firstConflict.startTime,
+      secondConflict.conflictDays,
+      secondConflict.startTime,
+    );
+
+    if (scheduleDifference !== 0) {
+      return scheduleDifference;
+    }
+
+    return (firstConflict.subject ?? '').localeCompare(secondConflict.subject ?? '')
+      || String(firstConflict.id).localeCompare(String(secondConflict.id));
+  });
 }

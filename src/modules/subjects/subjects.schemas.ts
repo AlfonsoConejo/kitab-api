@@ -5,7 +5,6 @@ import { CLASS_MODES, CLASS_TYPES, type SubjectRow } from './subjects.types.js';
 import { toDateOnly } from '../../shared/utils/date.js';
 
 const subjectIdMessage = 'El ID de la materia no es válido.';
-const periodIdMessage = 'El ID del periodo no es válido.';
 
 // Valida el rango horario y los datos de una clase antes de guardarla.
 export const classSchema = z
@@ -279,16 +278,6 @@ const conflictClassSchema = z
 
 
 export const externalConflictsSchema = z.object({
-  periodId: positiveIdSchema(
-    periodIdMessage
-  ),
-
-  subjectId: positiveIdSchema(
-    subjectIdMessage
-  )
-    .nullable()
-    .optional(),
-
   classes: z
     .array(
       conflictClassSchema

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authMiddleware } from '../../middleware/auth.middleware.js';
 import {
-  checkExternalConflicts,
+  checkExternalConflictsBySubject,
   checkInternalConflicts,
   createClasses,
   deleteSubject,
@@ -21,10 +21,10 @@ router.route('/:subjectId/with-classes')
 router.route('/:subjectId/classes')
   .post(authMiddleware, createClasses);
 
-router.route('/classes/check-external-conflicts')
-  .post(authMiddleware, checkExternalConflicts);
+router.route('/:subjectId/classes/conflicts/external')
+  .post(authMiddleware, checkExternalConflictsBySubject);
 
-router.route('/classes/check-internal-conflicts')
+router.route('/classes/conflicts/internal')
   .post(authMiddleware, checkInternalConflicts);
 
 export default router;

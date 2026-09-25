@@ -185,7 +185,10 @@ export async function getSubjectWithClasses(request: AuthenticatedRequest, respo
 }
 
 // Busca conflictos de horario entre clases enviadas y clases persistidas en el mismo período.
-export async function checkExternalConflicts(request: AuthenticatedRequest, response: Response) {
+export async function checkExternalConflictsByPeriod(
+  request: AuthenticatedRequest,
+  response: Response,
+) {
   const userId = getUserIdOrRespond(request, response);
 
   if (!userId) {
@@ -193,8 +196,34 @@ export async function checkExternalConflicts(request: AuthenticatedRequest, resp
   }
 
   try {
-    const { periodId, subjectId, classes } = externalConflictsSchema.parse(request.body);
-    const externalConflicts = await useCases.checkExternalConflicts(userId, periodId, subjectId ?? null, classes);
+    const periodId = periodIdFrom(request);
+    const { classes } = externalConflictsSchema.parse(request.body);
+    const externalConflicts = await useCases.checkExternalConflictsByPeriod(userId, periodId, classes);
+
+    return response.status(200).json({
+      success: true,
+      externalConflicts,
+    });
+  } catch (error) {
+    return sendErrorResponse(response, error);
+  }
+}
+
+// Busca conflictos de horario al editar las clases de una materia existente.
+export async function checkExternalConflictsBySubject(
+  request: AuthenticatedRequest,
+  response: Response,
+) {
+  const userId = getUserIdOrRespond(request, response);
+
+  if (!userId) {
+    return;
+  }
+
+  try {
+    const subjectId = subjectIdFrom(request);
+    const { classes } = externalConflictsSchema.parse(request.body);
+    const externalConflicts = await useCases.checkExternalConflictsBySubject(userId, subjectId, classes);
 
     return response.status(200).json({
       success: true,

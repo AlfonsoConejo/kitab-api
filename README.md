@@ -77,7 +77,8 @@ Base path: `/api/subjects`
 | POST | `/:subjectId/classes` | Create one or more classes for a subject | ✅ |
 | DELETE | `/:subjectId` | Delete a subject | ✅ |
 | GET | `/:subjectId/with-classes` | Get a subject with all of its associated classes | ✅ |
-| POST | `/classes/check-external-conflicts` | Find schedule conflicts with other subjects in a period | ✅ |
+| POST | `/periods/:periodId/classes/conflicts/external` | Find schedule conflicts while creating a subject | ✅ |
+| POST | `/subjects/:subjectId/classes/conflicts/external` | Find schedule conflicts while editing a subject | ✅ |
 | POST | `/classes/check-internal-conflicts` | Find schedule conflicts between classes in the request payload | ✅ |
 
 

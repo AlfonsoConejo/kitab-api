@@ -100,22 +100,28 @@ export class SubjectsUseCases {
     };
   }
 
-  async checkExternalConflicts(
+  async checkExternalConflictsByPeriod(
     userId: number,
     periodId: number,
-    subjectId: number | null,
     classes: ConflictClassInput[],
   ) {
-    let resolvedPeriodId = periodId;
+    await this.subjects.ensureOwnedPeriod(periodId, userId);
 
-    if (subjectId) {
-      const subject = await this.subjects.getOwnedSubject(subjectId, userId);
-      resolvedPeriodId = subject.period_id;
-    } else {
-      await this.subjects.ensureOwnedPeriod(periodId, userId);
-    }
+    const persistedClasses = await this.subjects.listClassesByPeriodExcludingSubject(periodId, null);
 
-    const persistedClasses = await this.subjects.listClassesByPeriodExcludingSubject(resolvedPeriodId, subjectId);
+    return findExternalConflicts(classes, persistedClasses.map(toClassDto));
+  }
+
+  async checkExternalConflictsBySubject(
+    userId: number,
+    subjectId: number,
+    classes: ConflictClassInput[],
+  ) {
+    const subject = await this.subjects.getOwnedSubject(subjectId, userId);
+    const persistedClasses = await this.subjects.listClassesByPeriodExcludingSubject(
+      subject.period_id,
+      subjectId,
+    );
 
     return findExternalConflicts(classes, persistedClasses.map(toClassDto));
   }
