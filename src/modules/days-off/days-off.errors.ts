@@ -9,7 +9,7 @@ export class DayOffPeriodNotFoundError extends NotFoundError {
 
 export class DayOffNotFoundError extends NotFoundError {
   constructor() {
-    super('El descanso no existe o no pertenece al período.', 'DAY_OFF_NOT_FOUND');
+    super('El descanso no existe o no te pertenece.', 'DAY_OFF_NOT_FOUND');
     this.name = 'DayOffNotFoundError';
   }
 }

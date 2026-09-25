@@ -50,6 +50,18 @@ export const openApiComponents = {
         },
         example: 31,
       },
+      DayOffId: {
+        name: 'dayOffId',
+        in: 'path',
+        required: true,
+        description: 'Identificador entero positivo del descanso.',
+        schema: {
+          type: 'integer',
+          format: 'int32',
+          minimum: 1,
+        },
+        example: 25,
+      },
     },
     schemas: {
       User: {
@@ -369,6 +381,85 @@ export const openApiComponents = {
           },
         },
       },
+      DayOff: {
+        type: 'object',
+        required: [
+          'id',
+          'periodId',
+          'name',
+          'type',
+          'startDate',
+          'endDate',
+          'notes',
+          'createdAt',
+          'updatedAt',
+        ],
+        properties: {
+          id: { type: 'integer', example: 25 },
+          periodId: { type: 'integer', example: 12 },
+          name: { type: 'string', maxLength: 60, example: 'Consejo técnico' },
+          type: {
+            type: 'string',
+            enum: ['day_off', 'vacation'],
+            example: 'day_off',
+          },
+          startDate: { type: 'string', format: 'date', example: '2026-09-10' },
+          endDate: { type: 'string', format: 'date', example: '2026-09-10' },
+          notes: {
+            anyOf: [
+              { type: 'string', maxLength: 150, example: 'Suspensión de actividades.' },
+              { type: 'null' },
+            ],
+          },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      DayOffListSuccess: {
+        type: 'object',
+        required: ['success', 'data'],
+        properties: {
+          success: { type: 'boolean', const: true },
+          data: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/DayOff' },
+          },
+        },
+      },
+      DayOffSuccess: {
+        type: 'object',
+        required: ['success', 'data'],
+        properties: {
+          success: { type: 'boolean', const: true },
+          data: { $ref: '#/components/schemas/DayOff' },
+        },
+      },
+      CreateDayOffSuccess: {
+        type: 'object',
+        required: ['success', 'message', 'data'],
+        properties: {
+          success: { type: 'boolean', const: true },
+          message: { type: 'string', const: 'Descanso creado correctamente.' },
+          data: { $ref: '#/components/schemas/DayOff' },
+        },
+      },
+      UpdateDayOffSuccess: {
+        type: 'object',
+        required: ['success', 'message', 'data'],
+        properties: {
+          success: { type: 'boolean', const: true },
+          message: { type: 'string', const: 'Descanso actualizado correctamente.' },
+          data: { $ref: '#/components/schemas/DayOff' },
+        },
+      },
+      DeleteDayOffSuccess: {
+        type: 'object',
+        required: ['success', 'message'],
+        properties: {
+          success: { type: 'boolean', const: true },
+          message: { type: 'string', const: 'Descanso eliminado correctamente.' },
+        },
+      },
       PeriodListSuccess: {
         type: 'object',
         required: ['success', 'data'],
@@ -496,6 +587,10 @@ export const openApiComponents = {
       AuthenticationError: {
         type: 'object',
         required: ['code', 'message'],
+        example: {
+          code: 'NO_ACCESS_TOKEN',
+          message: 'Acceso denegado',
+        },
         properties: {
           code: {
             type: 'string',
@@ -506,8 +601,9 @@ export const openApiComponents = {
               'ACCESS_TOKEN_EXPIRED',
               'INVALID_ACCESS_TOKEN',
             ],
+            example: 'NO_ACCESS_TOKEN',
           },
-          message: { type: 'string' },
+          message: { type: 'string', example: 'Acceso denegado' },
         },
       },
       AuthServiceUnavailable: {
@@ -536,5 +632,3 @@ export const openApiComponents = {
       },
     },
 };
-
-

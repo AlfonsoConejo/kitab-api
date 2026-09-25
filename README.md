@@ -57,15 +57,15 @@ Base path: `/api/periods`
 
 ### Days Off
 
-Base path: `/api/periods/:periodId/days-off`
+Collection endpoints: `/api/periods/:periodId/days-off`. Individual-resource endpoints: `/api/days-off/:dayOffId`.
 
 | Method | Endpoint | Description | Authentication |
 |--------|----------|-------------|----------------|
-| GET | `/` | Get all days off for the academic period | ✅ |
-| GET | `/:dayOffId` | Get a specific day off from the academic period | ✅ |
-| POST | `/` | Create a day off within the academic period | ✅ |
-| PUT | `/:dayOffId` | Update a day off within the academic period | ✅ |
-| DELETE | `/:dayOffId` | Delete a day off from the academic period | ✅ |
+| GET | `/api/periods/:periodId/days-off` | Get all days off for the academic period | ✅ |
+| POST | `/api/periods/:periodId/days-off` | Create a day off within the academic period | ✅ |
+| GET | `/api/days-off/:dayOffId` | Get a specific day off and infer its academic period | ✅ |
+| PUT | `/api/days-off/:dayOffId` | Update a day off and infer its academic period | ✅ |
+| DELETE | `/api/days-off/:dayOffId` | Delete a day off and infer its academic period | ✅ |
 
 ### Subjects
 

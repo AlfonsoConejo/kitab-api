@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createDayOffSchema,
-  dayOffParamsSchema,
+  dayOffIdSchema,
   daysOffPeriodIdSchema,
   parseDayOffForPeriod,
 } from '../days-off.schemas.js';
@@ -179,9 +179,9 @@ describe('days-off route parameter schemas', () => {
       success: true,
       data: { periodId: 12 },
     });
-    expect(dayOffParamsSchema.safeParse({ periodId: '12', dayOffId: '24' })).toEqual({
+    expect(dayOffIdSchema.safeParse({ dayOffId: '24' })).toEqual({
       success: true,
-      data: { periodId: 12, dayOffId: 24 },
+      data: { dayOffId: 24 },
     });
   });
 
@@ -207,7 +207,7 @@ describe('days-off route parameter schemas', () => {
     ['número decimal', '24.5'],
     ['valor no numérico', 'abc'],
   ])('rechaza un dayOffId con %s', (_description, dayOffId) => {
-    const result = dayOffParamsSchema.safeParse({ periodId: '12', dayOffId });
+    const result = dayOffIdSchema.safeParse({ dayOffId });
 
     expect(result.success).toBe(false);
 

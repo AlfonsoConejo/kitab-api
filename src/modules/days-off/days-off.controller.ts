@@ -3,7 +3,7 @@ import { getUserIdOrRespond, type AuthenticatedRequest } from '../../shared/http
 import { sendErrorResponse } from '../../shared/http/error-response.js';
 import { DaysOffUseCases } from './application/days-off.use-cases.js';
 import { PgDaysOffRepository } from './infrastructure/pg-days-off.repository.js';
-import { dayOffParamsSchema, daysOffPeriodIdSchema } from './days-off.schemas.js';
+import { dayOffIdSchema, daysOffPeriodIdSchema } from './days-off.schemas.js';
 
 const useCases = new DaysOffUseCases(new PgDaysOffRepository());
 
@@ -12,9 +12,9 @@ const periodIdFrom = (request: Request) => {
   return daysOffPeriodIdSchema.parse(request.params).periodId;
 };
 
-// Valida y convierte los identificadores de período y descanso de la URL.
-const dayOffIdsFrom = (request: Request) => {
-  return dayOffParamsSchema.parse(request.params);
+// Valida y convierte el identificador de descanso de la URL.
+const dayOffIdFrom = (request: Request) => {
+  return dayOffIdSchema.parse(request.params).dayOffId;
 };
 
 // Obtiene los días libres del período perteneciente al usuario autenticado.
@@ -41,7 +41,7 @@ export async function getDaysOffByPeriod(
   }
 }
 
-// Obtiene un descanso perteneciente a un período del usuario autenticado.
+// Obtiene un descanso y deriva su período a partir de su identificador.
 export async function getDayOffById(
   request: AuthenticatedRequest,
   response: Response,
@@ -53,8 +53,8 @@ export async function getDayOffById(
   }
 
   try {
-    const { periodId, dayOffId } = dayOffIdsFrom(request);
-    const dayOff = await useCases.getById(userId, periodId, dayOffId);
+    const dayOffId = dayOffIdFrom(request);
+    const dayOff = await useCases.getById(userId, dayOffId);
 
     return response.status(200).json({
       success: true,
@@ -90,7 +90,7 @@ export async function createDayOff(
   }
 }
 
-// Actualiza un descanso perteneciente a un período del usuario autenticado.
+// Actualiza un descanso e infiere su período para validar el rango de fechas.
 export async function updateDayOff(
   request: AuthenticatedRequest,
   response: Response,
@@ -102,10 +102,9 @@ export async function updateDayOff(
   }
 
   try {
-    const { periodId, dayOffId } = dayOffIdsFrom(request);
+    const dayOffId = dayOffIdFrom(request);
     const dayOff = await useCases.update(
       userId,
-      periodId,
       dayOffId,
       request.body,
     );
@@ -120,7 +119,7 @@ export async function updateDayOff(
   }
 }
 
-// Elimina un descanso perteneciente a un período del usuario autenticado.
+// Elimina un descanso después de comprobar la propiedad de su período inferido.
 export async function deleteDayOff(
   request: AuthenticatedRequest,
   response: Response,
@@ -132,8 +131,8 @@ export async function deleteDayOff(
   }
 
   try {
-    const { periodId, dayOffId } = dayOffIdsFrom(request);
-    await useCases.delete(userId, periodId, dayOffId);
+    const dayOffId = dayOffIdFrom(request);
+    await useCases.delete(userId, dayOffId);
 
     return response.status(200).json({
       success: true,

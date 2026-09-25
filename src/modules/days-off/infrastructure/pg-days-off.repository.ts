@@ -3,7 +3,7 @@ import { pool } from '../../../config/db.js';
 import { DayOffNotFoundError, DayOffPeriodNotFoundError } from '../days-off.errors.js';
 import { toDayOffRecord } from '../days-off.mapper.js';
 import type { CreateDayOffInput } from '../days-off.schemas.js';
-import type { DayOffRow, PeriodDateRangeRow } from '../days-off.types.js';
+import type { DayOffRow, OwnedDayOffRow, PeriodDateRangeRow } from '../days-off.types.js';
 import type { DaysOffRepository } from '../application/days-off.repository.js';
 
 export class PgDaysOffRepository implements DaysOffRepository {
@@ -39,13 +39,16 @@ export class PgDaysOffRepository implements DaysOffRepository {
     return result.rows;
   }
 
-  // Obtiene un descanso únicamente si pertenece al período indicado.
-  async getByIdAndPeriod(dayOffId: number, periodId: number): Promise<DayOffRow> {
-    const result = await this.database.query<DayOffRow>(
-      `SELECT id, period_id, name, type, start_date, end_date, notes, created_at, updated_at
-       FROM days_off
-       WHERE id = $1 AND period_id = $2`,
-      [dayOffId, periodId],
+  // Obtiene un descanso y el rango de su período solo si ambos pertenecen al usuario.
+  async getOwnedDayOff(dayOffId: number, userId: number): Promise<OwnedDayOffRow> {
+    const result = await this.database.query<OwnedDayOffRow>(
+      `SELECT d.id, d.period_id, d.name, d.type, d.start_date, d.end_date, d.notes,
+              d.created_at, d.updated_at,
+              p.start_date AS period_start_date, p.end_date AS period_end_date
+       FROM days_off d
+       JOIN academic_periods p ON p.id = d.period_id
+       WHERE d.id = $1 AND p.user_id = $2`,
+      [dayOffId, userId],
     );
 
     if (!result.rowCount) {
@@ -75,10 +78,9 @@ export class PgDaysOffRepository implements DaysOffRepository {
     return result.rows[0]!;
   }
 
-  // Actualiza un descanso únicamente si pertenece al período indicado.
-  async updateByIdAndPeriod(
+  // Actualiza un descanso cuya propiedad ya fue comprobada por el caso de uso.
+  async updateById(
     dayOffId: number,
-    periodId: number,
     input: CreateDayOffInput,
   ): Promise<DayOffRow> {
     const dayOff = toDayOffRecord(input);
@@ -90,7 +92,7 @@ export class PgDaysOffRepository implements DaysOffRepository {
            end_date = $4,
            notes = $5,
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $6 AND period_id = $7
+       WHERE id = $6
        RETURNING id, period_id, name, type, start_date, end_date, notes, created_at, updated_at`,
       [
         dayOff.name,
@@ -99,7 +101,6 @@ export class PgDaysOffRepository implements DaysOffRepository {
         dayOff.end_date,
         dayOff.notes,
         dayOffId,
-        periodId,
       ],
     );
 
@@ -110,13 +111,13 @@ export class PgDaysOffRepository implements DaysOffRepository {
     return result.rows[0]!;
   }
 
-  // Elimina un descanso únicamente si pertenece al período indicado.
-  async deleteByIdAndPeriod(dayOffId: number, periodId: number): Promise<void> {
+  // Elimina un descanso cuya propiedad ya fue comprobada por el caso de uso.
+  async deleteById(dayOffId: number): Promise<void> {
     const result = await this.database.query(
       `DELETE FROM days_off
-       WHERE id = $1 AND period_id = $2
+       WHERE id = $1
        RETURNING id`,
-      [dayOffId, periodId],
+      [dayOffId],
     );
 
     if (!result.rowCount) {

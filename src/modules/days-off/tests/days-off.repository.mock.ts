@@ -19,10 +19,10 @@ export function createDaysOffRepositoryMock(
   return {
     getOwnedPeriod: vi.fn<DaysOffRepository['getOwnedPeriod']>(),
     listByPeriod: vi.fn<DaysOffRepository['listByPeriod']>(),
-    getByIdAndPeriod: vi.fn<DaysOffRepository['getByIdAndPeriod']>(),
+    getOwnedDayOff: vi.fn<DaysOffRepository['getOwnedDayOff']>(),
     create: vi.fn<DaysOffRepository['create']>(),
-    updateByIdAndPeriod: vi.fn<DaysOffRepository['updateByIdAndPeriod']>(),
-    deleteByIdAndPeriod: vi.fn<DaysOffRepository['deleteByIdAndPeriod']>(),
+    updateById: vi.fn<DaysOffRepository['updateById']>(),
+    deleteById: vi.fn<DaysOffRepository['deleteById']>(),
     ...overrides,
   };
 }

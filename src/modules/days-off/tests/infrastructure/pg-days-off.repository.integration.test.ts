@@ -67,20 +67,22 @@ describe('PgDaysOffRepository - integración', () => {
     expect(daysOff.every((dayOff) => dayOff.period_id === periodId)).toBe(true);
   });
 
-  it('obtiene un descanso únicamente dentro de su período', async () => {
+  it('obtiene un descanso junto con su período solo para su propietario', async () => {
     const userId = await createTestUser('days-off-get@example.com');
     const periodId = await createTestPeriod(userId);
-    const otherPeriodId = await createTestPeriod(userId, 'Otro período', '2027-01-01', '2027-06-30');
+    const otherUserId = await createTestUser('days-off-get-other@example.com');
     const createdDayOff = await createTestDayOff(repository, periodId);
 
-    const dayOff = await repository.getByIdAndPeriod(createdDayOff.id, periodId);
+    const dayOff = await repository.getOwnedDayOff(createdDayOff.id, userId);
 
     expect(dayOff).toMatchObject({
       id: createdDayOff.id,
       period_id: periodId,
       name: createdDayOff.name,
     });
-    await expect(repository.getByIdAndPeriod(createdDayOff.id, otherPeriodId))
+    expect(dayOff.period_start_date).toBeDefined();
+    expect(dayOff.period_end_date).toBeDefined();
+    await expect(repository.getOwnedDayOff(createdDayOff.id, otherUserId))
       .rejects.toBeInstanceOf(DayOffNotFoundError);
   });
 
@@ -119,9 +121,8 @@ describe('PgDaysOffRepository - integración', () => {
       notes: 'Sin clases',
     };
 
-    const updatedDayOff = await repository.updateByIdAndPeriod(
+    const updatedDayOff = await repository.updateById(
       createdDayOff.id,
-      periodId,
       input,
     );
 
@@ -136,25 +137,16 @@ describe('PgDaysOffRepository - integración', () => {
     expectDatabaseDate(updatedDayOff.end_date, input.endDate);
   });
 
-  it('no actualiza ni elimina un descanso de otro período', async () => {
+  it('no expone un descanso a otro usuario', async () => {
     const userId = await createTestUser('days-off-mismatch@example.com');
+    const otherUserId = await createTestUser('days-off-mismatch-other@example.com');
     const periodId = await createTestPeriod(userId);
-    const otherPeriodId = await createTestPeriod(userId, 'Otro período', '2027-01-01', '2027-06-30');
     const createdDayOff = await createTestDayOff(repository, periodId);
-    const input: CreateDayOffInput = {
-      name: 'Vacaciones de invierno',
-      type: 'vacation',
-      startDate: '2026-12-01',
-      endDate: '2026-12-10',
-      notes: 'Sin clases',
-    };
 
-    await expect(repository.updateByIdAndPeriod(createdDayOff.id, otherPeriodId, input))
-      .rejects.toBeInstanceOf(DayOffNotFoundError);
-    await expect(repository.deleteByIdAndPeriod(createdDayOff.id, otherPeriodId))
+    await expect(repository.getOwnedDayOff(createdDayOff.id, otherUserId))
       .rejects.toBeInstanceOf(DayOffNotFoundError);
 
-    expect(await repository.getByIdAndPeriod(createdDayOff.id, periodId))
+    expect(await repository.getOwnedDayOff(createdDayOff.id, userId))
       .toMatchObject({ id: createdDayOff.id });
   });
 
@@ -163,7 +155,7 @@ describe('PgDaysOffRepository - integración', () => {
     const periodId = await createTestPeriod(userId);
     const createdDayOff = await createTestDayOff(repository, periodId);
 
-    await repository.deleteByIdAndPeriod(createdDayOff.id, periodId);
+    await repository.deleteById(createdDayOff.id);
 
     const result = await pool.query<DayOffRow>(
       'SELECT id FROM days_off WHERE id = $1',

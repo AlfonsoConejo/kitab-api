@@ -8,6 +8,7 @@ import { csrfOriginMiddleware } from './middleware/csrf-origin.middleware.js';
 import { getAllowedOrigins } from './shared/http/allowed-origins.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import daysOffRoutes from './modules/days-off/days-off.routes.js';
+import periodDaysOffRoutes from './modules/days-off/period-days-off.routes.js';
 import periodRoutes from './modules/periods/periods.routes.js';
 import periodClassesRoutes from './modules/subjects/period-classes.routes.js';
 import periodSubjectsRoutes from './modules/subjects/period-subjects.routes.js';
@@ -181,10 +182,11 @@ app.get('/health', async (_request, response) => {
 });
 
 app.use('/api/auth', authRoutes);
-app.use('/api/periods/:periodId/days-off', daysOffRoutes);
+app.use('/api/periods/:periodId/days-off', periodDaysOffRoutes);
 app.use('/api/periods/:periodId/classes', periodClassesRoutes);
 app.use('/api/periods/:periodId/subjects', periodSubjectsRoutes);
 app.use('/api/periods', periodRoutes);
 app.use('/api/subjects', subjectsRoutes);
+app.use('/api/days-off', daysOffRoutes);
 
 export default app;

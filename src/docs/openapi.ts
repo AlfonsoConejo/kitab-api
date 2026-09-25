@@ -1,4 +1,5 @@
 import { authPaths } from './auth.openapi.js';
+import { daysOffPaths } from './days-off.openapi.js';
 import { openApiComponents } from './openapi.components.js';
 import { periodPaths } from './periods.openapi.js';
 import { subjectPaths } from './subjects.openapi.js';
@@ -32,14 +33,18 @@ export const openApiDocument = {
       name: 'Subjects',
       description: 'Gestión de materias y sus clases dentro de períodos académicos.',
     },
+    {
+      name: 'Days Off',
+      description: 'Días libres y períodos vacacionales dentro de períodos académicos.',
+    },
   ],
 
   paths: {
     ...authPaths,
     ...periodPaths,
     ...subjectPaths,
+    ...daysOffPaths,
   },
 
   components: openApiComponents,
 };
-

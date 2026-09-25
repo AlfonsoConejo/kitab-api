@@ -28,3 +28,9 @@ export interface PeriodDateRangeRow {
   start_date: string | Date;
   end_date: string | Date;
 }
+
+/** Descanso perteneciente al usuario junto con el rango de su período. */
+export interface OwnedDayOffRow extends DayOffRow {
+  period_start_date: string | Date;
+  period_end_date: string | Date;
+}

@@ -95,7 +95,7 @@ describe('days-off controllers', () => {
 
     await getDayOffById(request({ periodId: '12', dayOffId: '25' }), response);
 
-    expect(getByIdMock).toHaveBeenCalledWith(100, 12, 25);
+    expect(getByIdMock).toHaveBeenCalledWith(100, 25);
     expect(response.status).toHaveBeenCalledWith(200);
     expect(response.json).toHaveBeenCalledWith({ success: true, data: dayOff });
   });
@@ -126,7 +126,7 @@ describe('days-off controllers', () => {
 
     await updateDayOff(request({ periodId: '12', dayOffId: '25' }, updatePayload), response);
 
-    expect(updateMock).toHaveBeenCalledWith(100, 12, 25, updatePayload);
+    expect(updateMock).toHaveBeenCalledWith(100, 25, updatePayload);
     expect(response.status).toHaveBeenCalledWith(200);
     expect(response.json).toHaveBeenCalledWith({
       success: true,
@@ -141,7 +141,7 @@ describe('days-off controllers', () => {
 
     await deleteDayOff(request({ periodId: '12', dayOffId: '25' }), response);
 
-    expect(deleteMock).toHaveBeenCalledWith(100, 12, 25);
+    expect(deleteMock).toHaveBeenCalledWith(100, 25);
     expect(response.status).toHaveBeenCalledWith(200);
     expect(response.json).toHaveBeenCalledWith({
       success: true,
@@ -234,7 +234,7 @@ describe('days-off controllers', () => {
     expect(response.status).toHaveBeenCalledWith(404);
     expect(response.json).toHaveBeenCalledWith({
       success: false,
-      message: 'El descanso no existe o no pertenece al período.',
+      message: 'El descanso no existe o no te pertenece.',
     });
   });
 
