@@ -24,7 +24,116 @@ const allowedOrigins = getAllowedOrigins();
 app.use(
   '/api-docs',
   swaggerUi.serve,
-  swaggerUi.setup(openApiDocument),
+  swaggerUi.setup(openApiDocument, {
+    customSiteTitle: 'Kitab API · Documentación',
+    customCss: `
+      :root {
+        --kitab-navy: #0f172a;
+        --kitab-blue: #2563eb;
+        --kitab-slate: #475569;
+        --kitab-surface: #f8fafc;
+        --kitab-border: #e2e8f0;
+      }
+
+      body {
+        background: var(--kitab-surface);
+      }
+
+      .swagger-ui {
+        color: var(--kitab-navy);
+      }
+
+      .swagger-ui .topbar {
+        background: var(--kitab-navy);
+        box-shadow: 0 2px 12px rgba(15, 23, 42, .2);
+        padding: 14px 0;
+      }
+
+      .swagger-ui .topbar-wrapper {
+        align-items: center;
+        max-width: 1200px;
+      }
+
+      .swagger-ui .topbar-wrapper > a,
+      .swagger-ui .topbar .download-url-wrapper {
+        display: none;
+      }
+
+      .swagger-ui .topbar-wrapper::before {
+        color: #fff;
+        content: 'Kitab API';
+        font-family: sans-serif;
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: -.02em;
+      }
+
+      .swagger-ui .info {
+        margin: 42px 0 28px;
+      }
+
+      .swagger-ui .info .title {
+        color: var(--kitab-navy);
+        font-size: 32px;
+      }
+
+      .swagger-ui .info .title small.version-stamp {
+        background: var(--kitab-blue);
+      }
+
+      .swagger-ui .info p,
+      .swagger-ui .info li {
+        color: var(--kitab-slate);
+      }
+
+      .swagger-ui .scheme-container {
+        background: transparent !important;
+        border: 0 !important;
+        border-radius: 10px;
+        box-shadow: none !important;
+        outline: 0 !important;
+      }
+
+      .swagger-ui .opblock-tag {
+        border-bottom-color: var(--kitab-border);
+        color: var(--kitab-navy);
+        font-size: 18px;
+      }
+
+      .swagger-ui .opblock {
+        border-radius: 10px;
+        box-shadow: none;
+      }
+
+      .swagger-ui .opblock.opblock-post {
+        border-color: #16a34a;
+        background: rgba(22, 163, 74, .06);
+      }
+
+      .swagger-ui .opblock.opblock-post .opblock-summary-method {
+        background: #16a34a;
+      }
+
+      .swagger-ui .btn.execute {
+        background: var(--kitab-blue);
+        border-color: var(--kitab-blue);
+        border-radius: 6px;
+      }
+
+      .swagger-ui .btn.authorize {
+        border-color: var(--kitab-blue);
+        border-radius: 6px;
+        color: var(--kitab-blue);
+      }
+
+      .swagger-ui input[type=text],
+      .swagger-ui textarea,
+      .swagger-ui select {
+        border-color: #cbd5e1;
+        border-radius: 6px;
+      }
+    `,
+  }),
 );
 
 app.set('trust proxy', true);
