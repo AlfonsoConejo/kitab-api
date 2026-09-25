@@ -196,6 +196,10 @@ export const subjectIdParamsSchema = z.object({
   )
 });
 
+// Validates the period identifier received by nested subject routes.
+export const periodIdParamsSchema = z.object({
+  periodId: positiveIdSchema('El ID del período no es válido.'),
+});
 
 export const createClassesSchema = z.object({
   classes: z
@@ -219,6 +223,11 @@ export const updateSubjectSchema = subjectSchema.extend({
       'El ID de la clase no es válido.'
     )
   )
+});
+
+// Validates a new subject and the optional classes created with it.
+export const createSubjectSchema = subjectSchema.extend({
+  classes: z.array(classSchema).default([]),
 });
 
 const conflictClassSchema = z
@@ -296,6 +305,7 @@ export const internalConflictsSchema = z.object({
 });
 
 export type ClassInput = z.infer<typeof classSchema>;
+export type CreateSubjectInput = z.infer<typeof createSubjectSchema>;
 export type SubjectUpdateInput = z.infer<typeof updateSubjectSchema>;
 export type ConflictClassInput = z.infer<typeof conflictClassSchema>;
 
@@ -332,4 +342,26 @@ export function parseSubjectUpdateForPeriod(
   }
 
   return update;
+}
+
+// Validates that a new subject remains within its academic period dates.
+export function parseSubjectCreateForPeriod(
+  input: unknown,
+  period: { start_date: string | Date; end_date: string | Date },
+): CreateSubjectInput {
+  const subject = createSubjectSchema.parse(input);
+  const periodStart = toDateOnly(period.start_date);
+  const periodEnd = toDateOnly(period.end_date);
+
+  if (subject.startDate < periodStart || subject.endDate > periodEnd) {
+    throw new z.ZodError([
+      {
+        code: 'custom',
+        path: ['startDate'],
+        message: 'Las fechas de la materia deben estar dentro del periodo académico.',
+      },
+    ]);
+  }
+
+  return subject;
 }

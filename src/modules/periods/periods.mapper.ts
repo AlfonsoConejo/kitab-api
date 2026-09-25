@@ -2,8 +2,6 @@ import type { PeriodDto, PeriodRow } from './periods.types.js';
 import type { PeriodInput } from './periods.schemas.js';
 import { toDateOnly } from '../../shared/utils/date.js';
 
-export { toClassDto, toSubjectDto, toSubjectRecord } from '../subjects/subjects.mapper.js';
-
 // Transforma una fila de academic_periods en el DTO público de un período.
 export const toPeriodDto = (period: PeriodRow): PeriodDto => ({
   id: period.id,

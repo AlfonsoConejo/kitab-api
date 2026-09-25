@@ -1,13 +1,11 @@
 import { Router } from 'express';
 import {
   createPeriod,
-  createSubject,
   deletePeriod,
   getCalendarEvents,
   getClassesByPeriod,
   getPeriod,
   getPeriods,
-  getSubjectsByPeriod,
   updatePeriod,
 } from './periods.controller.js';
 import { authMiddleware } from '../../middleware/auth.middleware.js';
@@ -23,10 +21,6 @@ router.route('/:periodId')
   .put(authMiddleware, updatePeriod)
   .delete(authMiddleware, deletePeriod);
 
-router.route('/:periodId/subjects')
-  .get(authMiddleware, getSubjectsByPeriod)
-  .post(authMiddleware, createSubject);
-  
 router.route('/:periodId/classes')
   .get(authMiddleware, getClassesByPeriod);
 

@@ -179,28 +179,6 @@ export async function deletePeriod(req: AuthenticatedRequest, res: Response) {
   }
 }
 
-// Obtiene las materias pertenecientes a un período del usuario autenticado.
-export async function getSubjectsByPeriod(req: AuthenticatedRequest, res: Response) {
-  const userId = userIdFrom(req, res);
-
-  if (!userId) {
-    return;
-  }
-
-  try {
-    const periodId = periodIdFrom(req);
-
-    const subjects = await useCases.listSubjects(userId, periodId);
-
-    return res.status(200).json({
-      success: true,
-      data: subjects
-    });
-  } catch (error) {
-    return sendError(res, error);
-  }
-}
-
 // Obtiene las clases de todas las materias de un período del usuario autenticado.
 export async function getClassesByPeriod(req: AuthenticatedRequest, res: Response) {
   const userId = userIdFrom(req, res);
@@ -242,36 +220,5 @@ export async function getCalendarEvents(req: AuthenticatedRequest, res: Response
     });
   } catch (error) {
     return sendError(res, error);
-  }
-}
-
-// Crea una materia y, opcionalmente, sus clases dentro de un período del usuario autenticado.
-export async function createSubject(req: AuthenticatedRequest, res: Response) {
-  const userId = userIdFrom(req, res);
-
-  if (!userId) {
-    return;
-  }
-
-  try {
-    const periodId = periodIdFrom(req);
-
-    const result = await useCases.createSubject(
-      userId,
-      periodId,
-      req.body
-    );
-
-    return res.status(201).json({
-      success: true,
-      message: 'Materia creada correctamente.',
-      ...result
-    });
-  } catch (error) {
-    return sendError(
-      res,
-      error,
-      'Ya existe una materia con ese nombre en este periodo.'
-    );
   }
 }

@@ -2,7 +2,7 @@ import type { Pool, PoolClient } from 'pg';
 import { pool } from '../../../config/db.js';
 import { ClassNotFoundError, PeriodNotFoundError, SubjectNotFoundError } from '../subjects.errors.js';
 import { toSubjectRecord } from '../subjects.mapper.js';
-import type { ClassInput, SubjectUpdateInput } from '../subjects.schemas.js';
+import type { ClassInput, CreateSubjectInput, SubjectUpdateInput } from '../subjects.schemas.js';
 import type { ClassRow, SubjectRow } from '../subjects.types.js';
 
 type DatabaseClient = Pool | PoolClient;
@@ -32,15 +32,21 @@ export class PgSubjectsRepository {
     return result.rows[0]!;
   }
 
-  async ensureOwnedPeriod(periodId: number, userId: number): Promise<void> {
-    const result = await this.database.query(
-      'SELECT id FROM academic_periods WHERE id = $1 AND user_id = $2',
+  async ensureOwnedPeriod(
+    periodId: number,
+    userId: number,
+    client: DatabaseClient = this.database,
+  ): Promise<{ start_date: string | Date; end_date: string | Date }> {
+    const result = await client.query<{ start_date: string | Date; end_date: string | Date }>(
+      'SELECT start_date, end_date FROM academic_periods WHERE id = $1 AND user_id = $2',
       [periodId, userId],
     );
 
     if (!result.rowCount) {
       throw new PeriodNotFoundError();
     }
+
+    return result.rows[0]!;
   }
 
   async getSubject(subjectId: number): Promise<SubjectRow | null> {
@@ -52,6 +58,41 @@ export class PgSubjectsRepository {
     );
 
     return result.rows[0] ?? null;
+  }
+
+  async listSubjectsByPeriod(periodId: number): Promise<SubjectRow[]> {
+    const result = await this.database.query<SubjectRow>(
+      `SELECT id, period_id, name, teacher, color, start_date, end_date, created_at, updated_at
+       FROM subjects
+       WHERE period_id = $1
+       ORDER BY unaccent(name)`,
+      [periodId],
+    );
+
+    return result.rows;
+  }
+
+  async createSubject(
+    periodId: number,
+    input: CreateSubjectInput,
+    client: PoolClient,
+  ): Promise<SubjectRow> {
+    const subject = toSubjectRecord(input);
+    const result = await client.query<SubjectRow>(
+      `INSERT INTO subjects (period_id, name, teacher, color, start_date, end_date)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, period_id, name, teacher, color, start_date, end_date, created_at, updated_at`,
+      [
+        periodId,
+        subject.name,
+        subject.teacher,
+        subject.color,
+        subject.start_date,
+        subject.end_date,
+      ],
+    );
+
+    return result.rows[0]!;
   }
 
   async listClassesBySubject(subjectId: number): Promise<ClassRow[]> {

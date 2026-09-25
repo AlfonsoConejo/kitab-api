@@ -2,9 +2,9 @@ import type { Pool, PoolClient } from 'pg';
 import { pool } from '../../../config/db.js';
 import { PeriodNotFoundError } from '../periods.errors.js';
 import type { CalendarClassRow, PeriodRow } from '../periods.types.js';
-import type { ClassRow, SubjectRow } from '../../subjects/subjects.types.js';
-import type { CreateSubjectInput, PeriodInput } from '../periods.schemas.js';
-import { toPeriodRecord, toSubjectRecord } from '../periods.mapper.js';
+import type { ClassRow } from '../../subjects/subjects.types.js';
+import type { PeriodInput } from '../periods.schemas.js';
+import { toPeriodRecord } from '../periods.mapper.js';
 import type { PeriodsRepository } from '../application/periods.repository.js';
 
 type DatabaseClient = Pool | PoolClient;
@@ -84,18 +84,6 @@ export class PgPeriodsRepository implements PeriodsRepository {
     );
   }
 
-  // Obtiene las materias que pertenecen a un período.
-  async listSubjects(periodId: number): Promise<SubjectRow[]> {
-    const result = await this.database.query<SubjectRow>(
-      `SELECT id, period_id, name, teacher, color, start_date, end_date
-       FROM subjects 
-       WHERE period_id = $1 
-       ORDER BY unaccent(name)`,
-      [periodId],
-    );
-    return result.rows;
-  }
-
   // Obtiene todas las clases de las materias de un período en orden de horario.
   async listClasses(periodId: number): Promise<ClassRow[]> {
     const result = await this.database.query<ClassRow>(
@@ -124,26 +112,4 @@ export class PgPeriodsRepository implements PeriodsRepository {
     return result.rows;
   }
 
-  // Inserta una materia usando el cliente activo de una transacción.
-  async createSubject(periodId: number, input: CreateSubjectInput, client: PoolClient): Promise<SubjectRow> {
-    const subject = toSubjectRecord(input);
-    const result = await client.query<SubjectRow>(
-      `INSERT INTO subjects (period_id, name, teacher, color, start_date, end_date)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, period_id, name, teacher, color, start_date, end_date`,
-      [periodId, subject.name, subject.teacher, subject.color, subject.start_date, subject.end_date],
-    );
-    return result.rows[0]!;
-  }
-
-  // Inserta las clases de una materia usando el cliente activo de una transacción.
-  async createClasses(subjectId: number, classes: CreateSubjectInput['classes'], client: PoolClient): Promise<void> {
-    for (const classItem of classes) {
-      await client.query(
-        `INSERT INTO classes (subject_id, days, start_time, end_time, mode, classroom, type)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [subjectId, classItem.days, classItem.startTime, classItem.endTime, classItem.mode, classItem.classroom, classItem.type],
-      );
-    }
-  }
 }

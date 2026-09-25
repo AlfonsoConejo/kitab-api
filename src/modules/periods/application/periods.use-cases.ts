@@ -1,12 +1,10 @@
 import type {
   CalendarEventsQuery,
-  CreateSubjectInput,
   PeriodInput,
 } from '../periods.schemas.js';
-import { parseSubjectForPeriod } from '../periods.schemas.js';
-import { toClassDto, toPeriodDto, toSubjectDto } from '../periods.mapper.js';
+import { toPeriodDto } from '../periods.mapper.js';
+import { toClassDto } from '../../subjects/subjects.mapper.js';
 import type { PeriodsRepository } from './periods.repository.js';
-import { withTransaction } from '../../../shared/database/transaction.js';
 import { PgDaysOffRepository } from '../../days-off/infrastructure/pg-days-off.repository.js';
 import { toDayOffDto } from '../../days-off/days-off.mapper.js';
 import { buildCalendarEvents } from './calendar-events.service.js';
@@ -66,15 +64,6 @@ export class PeriodsUseCases {
     await this.periods.deletePeriod(periodId);
   }
 
-  // Comprueba la propiedad del período y lista sus materias en formato público.
-  async listSubjects(userId: number, periodId: number) {
-    await this.periods.getOwnedPeriod(periodId, userId);
-
-    const subjects = await this.periods.listSubjects(periodId);
-
-    return subjects.map(toSubjectDto);
-  }
-
   // Comprueba la propiedad del período y lista las clases de sus materias.
   async listClasses(userId: number, periodId: number) {
     await this.periods.getOwnedPeriod(periodId, userId);
@@ -104,28 +93,4 @@ export class PeriodsUseCases {
     });
   }
 
-  // Crea una materia y sus clases de forma atómica después de validar sus fechas contra el período.
-  async createSubject(userId: number, periodId: number, payload: unknown) {
-    return withTransaction(
-      this.periods.database,
-      async (client) => {
-        const period = await this.periods.getOwnedPeriod(periodId, userId, client);
-
-        const input: CreateSubjectInput = parseSubjectForPeriod(payload, period);
-
-        const subject = await this.periods.createSubject(periodId, input, client);
-
-        await this.periods.createClasses(subject.id, input.classes, client);
-
-        const classes = input.classes.length
-          ? input.classes.map(toClassDto)
-          : undefined;
-
-        return {
-          subject: toSubjectDto(subject),
-          classes
-        };
-      }
-    );
-  }
 }

@@ -1,7 +1,13 @@
 import { withTransaction } from '../../../shared/database/transaction.js';
 import { findExternalConflicts, findInternalConflicts } from './class-conflicts.service.js';
 import { toClassDto, toSubjectDto } from '../subjects.mapper.js';
-import { parseSubjectUpdateForPeriod, type ClassInput, type ConflictClassInput, type SubjectUpdateInput } from '../subjects.schemas.js';
+import {
+  parseSubjectCreateForPeriod,
+  parseSubjectUpdateForPeriod,
+  type ClassInput,
+  type ConflictClassInput,
+  type SubjectUpdateInput,
+} from '../subjects.schemas.js';
 import { PgSubjectsRepository } from '../infrastructure/pg-subjects.repository.js';
 
 export class SubjectsUseCases {
@@ -14,6 +20,27 @@ export class SubjectsUseCases {
       const insertedClasses = await this.subjects.createClasses(subjectId, classes, client);
 
       return insertedClasses.map(toClassDto);
+    });
+  }
+
+  async listSubjects(userId: number, periodId: number) {
+    await this.subjects.ensureOwnedPeriod(periodId, userId);
+    const subjects = await this.subjects.listSubjectsByPeriod(periodId);
+
+    return subjects.map(toSubjectDto);
+  }
+
+  async createSubject(userId: number, periodId: number, payload: unknown) {
+    return withTransaction(this.subjects.database, async (client) => {
+      const period = await this.subjects.ensureOwnedPeriod(periodId, userId, client);
+      const input = parseSubjectCreateForPeriod(payload, period);
+      const subject = await this.subjects.createSubject(periodId, input, client);
+      await this.subjects.createClasses(subject.id, input.classes, client);
+
+      return {
+        subject: toSubjectDto(subject),
+        classes: input.classes.length ? input.classes.map(toClassDto) : undefined,
+      };
     });
   }
 

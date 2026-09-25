@@ -1,34 +1,75 @@
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { sendErrorResponse } from '../../shared/http/error-response.js';
-import { getAuthenticatedUserId, type AuthenticatedRequest } from '../../shared/http/authenticated-request.js';
+import { getUserIdOrRespond, type AuthenticatedRequest } from '../../shared/http/authenticated-request.js';
 import { SubjectsUseCases } from './application/subjects.use-cases.js';
 import { PgSubjectsRepository } from './infrastructure/pg-subjects.repository.js';
 import {
   createClassesSchema,
   externalConflictsSchema,
   internalConflictsSchema,
+  periodIdParamsSchema,
   subjectIdParamsSchema,
 } from './subjects.schemas.js';
 
 const useCases = new SubjectsUseCases(new PgSubjectsRepository());
 
-function getUserIdOrRespond(request: AuthenticatedRequest, response: Response): number | null {
-  const userId = getAuthenticatedUserId(request);
-
-  if (!userId) {
-    response.status(401).json({
-      success: false,
-      message: 'Usuario no autenticado',
-    });
-
-    return null;
-  }
-
-  return userId;
-}
-
 function subjectIdFrom(request: AuthenticatedRequest): number {
   return subjectIdParamsSchema.parse(request.params).subjectId;
+}
+
+function periodIdFrom(request: Request): number {
+  return periodIdParamsSchema.parse(request.params).periodId;
+}
+
+// Obtiene las materias de un período perteneciente al usuario autenticado.
+export async function getSubjectsByPeriod(
+  request: AuthenticatedRequest,
+  response: Response,
+) {
+  const userId = getUserIdOrRespond(request, response);
+
+  if (!userId) {
+    return;
+  }
+
+  try {
+    const periodId = periodIdFrom(request);
+    const subjects = await useCases.listSubjects(userId, periodId);
+
+    return response.status(200).json({
+      success: true,
+      data: subjects,
+    });
+  } catch (error) {
+    return sendErrorResponse(response, error);
+  }
+}
+
+// Crea una materia y sus clases opcionales dentro de un período del usuario autenticado.
+export async function createSubject(
+  request: AuthenticatedRequest,
+  response: Response,
+) {
+  const userId = getUserIdOrRespond(request, response);
+
+  if (!userId) {
+    return;
+  }
+
+  try {
+    const periodId = periodIdFrom(request);
+    const result = await useCases.createSubject(userId, periodId, request.body);
+
+    return response.status(201).json({
+      success: true,
+      message: 'Materia creada correctamente.',
+      ...result,
+    });
+  } catch (error) {
+    return sendErrorResponse(response, error, {
+      uniqueMessage: 'Ya existe una materia con ese nombre en este periodo.',
+    });
+  }
 }
 
 // Crea una o más clases para una materia que pertenece al usuario autenticado.
