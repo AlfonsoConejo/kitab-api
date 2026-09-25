@@ -107,6 +107,19 @@ export class PgSubjectsRepository {
     return result.rows;
   }
 
+  async listClassesByPeriod(periodId: number): Promise<ClassRow[]> {
+    const result = await this.database.query<ClassRow>(
+      `SELECT c.id, c.subject_id, s.name AS subject_name, c.days, c.start_time, c.end_time, c.mode, c.classroom, c.type
+       FROM classes c
+       JOIN subjects s ON s.id = c.subject_id
+       WHERE s.period_id = $1
+       ORDER BY (SELECT MIN(day) FROM unnest(c.days) AS day), c.start_time, s.name, c.id`,
+      [periodId],
+    );
+
+    return result.rows;
+  }
+
   async createClasses(
     subjectId: number,
     classes: ClassInput[],

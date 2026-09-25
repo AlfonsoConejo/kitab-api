@@ -30,6 +30,13 @@ export class SubjectsUseCases {
     return subjects.map(toSubjectDto);
   }
 
+  async listClassesByPeriod(userId: number, periodId: number) {
+    await this.subjects.ensureOwnedPeriod(periodId, userId);
+    const classes = await this.subjects.listClassesByPeriod(periodId);
+
+    return classes.map(toClassDto);
+  }
+
   async createSubject(userId: number, periodId: number, payload: unknown) {
     return withTransaction(this.subjects.database, async (client) => {
       const period = await this.subjects.ensureOwnedPeriod(periodId, userId, client);

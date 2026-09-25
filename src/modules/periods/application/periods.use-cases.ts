@@ -3,7 +3,6 @@ import type {
   PeriodInput,
 } from '../periods.schemas.js';
 import { toPeriodDto } from '../periods.mapper.js';
-import { toClassDto } from '../../subjects/subjects.mapper.js';
 import type { PeriodsRepository } from './periods.repository.js';
 import { PgDaysOffRepository } from '../../days-off/infrastructure/pg-days-off.repository.js';
 import { toDayOffDto } from '../../days-off/days-off.mapper.js';
@@ -62,15 +61,6 @@ export class PeriodsUseCases {
     await this.periods.getOwnedPeriod(periodId, userId);
 
     await this.periods.deletePeriod(periodId);
-  }
-
-  // Comprueba la propiedad del período y lista las clases de sus materias.
-  async listClasses(userId: number, periodId: number) {
-    await this.periods.getOwnedPeriod(periodId, userId);
-
-    const classes = await this.periods.listClasses(periodId);
-
-    return classes.map(toClassDto);
   }
 
   // Devuelve ocurrencias de clases y descansos resueltos para el rango solicitado.

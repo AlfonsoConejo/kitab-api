@@ -34,7 +34,6 @@ export function createPeriodsRepositoryMock(
     getOwnedPeriod: vi.fn<PeriodsRepository['getOwnedPeriod']>(),
     updatePeriod: vi.fn<PeriodsRepository['updatePeriod']>(),
     deletePeriod: vi.fn<PeriodsRepository['deletePeriod']>(),
-    listClasses: vi.fn<PeriodsRepository['listClasses']>(),
     listCalendarClasses: vi.fn<PeriodsRepository['listCalendarClasses']>(),
     ...overrides,
   };

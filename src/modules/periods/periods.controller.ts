@@ -179,28 +179,6 @@ export async function deletePeriod(req: AuthenticatedRequest, res: Response) {
   }
 }
 
-// Obtiene las clases de todas las materias de un período del usuario autenticado.
-export async function getClassesByPeriod(req: AuthenticatedRequest, res: Response) {
-  const userId = userIdFrom(req, res);
-
-  if (!userId) {
-    return;
-  }
-
-  try {
-    const periodId = periodIdFrom(req);
-
-    const classes = await useCases.listClasses(userId, periodId);
-
-    return res.status(200).json({
-      success: true,
-      data: classes
-    });
-  } catch (error) {
-    return sendError(res, error);
-  }
-}
-
 // Genera los eventos de calendario para un rango de fechas del período.
 export async function getCalendarEvents(req: AuthenticatedRequest, res: Response) {
   const userId = userIdFrom(req, res);

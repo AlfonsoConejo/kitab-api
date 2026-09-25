@@ -1,7 +1,11 @@
 import { z } from 'zod';
 import { loginSchema, registerSchema } from '../modules/auth/auth.schemas.js';
 import { periodSchema } from '../modules/periods/periods.schemas.js';
-import { createSubjectSchema, updateSubjectSchema } from '../modules/subjects/subjects.schemas.js';
+import {
+  createClassesSchema,
+  createSubjectSchema,
+  updateSubjectSchema,
+} from '../modules/subjects/subjects.schemas.js';
 
 const registerJsonSchema = z.toJSONSchema(registerSchema, {
   io: 'input',
@@ -24,6 +28,11 @@ const createSubjectJsonSchema = z.toJSONSchema(createSubjectSchema, {
 });
 
 const updateSubjectJsonSchema = z.toJSONSchema(updateSubjectSchema, {
+  io: 'input',
+  unrepresentable: 'any',
+});
+
+const createClassesJsonSchema = z.toJSONSchema(createClassesSchema, {
   io: 'input',
   unrepresentable: 'any',
 });
@@ -1663,6 +1672,113 @@ export const openApiDocument = {
         },
       },
     },
+    '/api/periods/{periodId}/classes': {
+      get: {
+        tags: ['Subjects'],
+        operationId: 'listClassesByPeriod',
+        summary: 'Obtener las clases de un período',
+        description: 'Devuelve las clases de todas las materias del período únicamente si este pertenece al usuario autenticado.',
+        security: [
+          { cookieAuth: [] },
+        ],
+
+        parameters: [
+          { $ref: '#/components/parameters/PeriodId' },
+        ],
+
+        responses: {
+          '200': {
+            description: 'Lista de clases del período. Puede estar vacía.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ClassListSuccess' },
+                example: {
+                  success: true,
+                  data: [
+                    {
+                      id: 81,
+                      subjectId: 31,
+                      subjectName: 'Cálculo diferencial',
+                      days: [1, 3, 5],
+                      type: 'theory',
+                      mode: 'onsite',
+                      classroom: 'A-203',
+                      startTime: '09:00',
+                      endTime: '10:00',
+                    },
+                  ],
+                },
+              },
+            },
+          },
+
+          '400': {
+            description: 'El identificador del período no es un entero positivo válido.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiError' },
+                example: {
+                  success: false,
+                  message: 'El ID del período no es válido.',
+                },
+              },
+            },
+          },
+
+          '401': {
+            description: 'La cookie de acceso no existe, es inválida, expiró o pertenece a una sesión inactiva.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/AuthenticationError' },
+                example: {
+                  code: 'NO_ACCESS_TOKEN',
+                  message: 'Acceso denegado',
+                },
+              },
+            },
+          },
+
+          '404': {
+            description: 'El período no existe o no pertenece al usuario autenticado.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiError' },
+                example: {
+                  success: false,
+                  message: 'El periodo no existe o no te pertenece.',
+                },
+              },
+            },
+          },
+
+          '503': {
+            description: 'No fue posible comprobar que la sesión asociada al access token siga activa.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/AuthServiceUnavailable' },
+                example: {
+                  code: 'AUTH_SERVICE_UNAVAILABLE',
+                  message: 'El servicio de autenticación no está disponible',
+                },
+              },
+            },
+          },
+
+          '500': {
+            description: 'Error interno del servidor al obtener las clases.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiError' },
+                example: {
+                  success: false,
+                  message: 'Error interno del servidor.',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     '/api/subjects/{subjectId}': {
       delete: {
         tags: ['Subjects'],
@@ -2025,6 +2141,313 @@ export const openApiDocument = {
         },
       },
     },
+    '/api/subjects/{subjectId}/with-classes': {
+      get: {
+        tags: ['Subjects'],
+        operationId: 'getSubjectWithClasses',
+        summary: 'Obtener una materia con sus clases',
+        description: 'Devuelve una materia y todas sus clases únicamente si pertenece al usuario autenticado.',
+        security: [
+          { cookieAuth: [] },
+        ],
+
+        parameters: [
+          { $ref: '#/components/parameters/SubjectId' },
+        ],
+
+        responses: {
+          '200': {
+            description: 'Materia encontrada con sus clases. La lista de clases puede estar vacía.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SubjectWithClassesSuccess' },
+                example: {
+                  success: true,
+                  data: {
+                    id: 31,
+                    periodId: 12,
+                    name: 'Cálculo diferencial',
+                    teacher: 'María López',
+                    color: '#7C3AED',
+                    startDate: '2026-08-17',
+                    endDate: '2026-12-12',
+                    createdAt: '2026-08-02T10:00:00.000Z',
+                    updatedAt: null,
+                    classes: [
+                      {
+                        id: 81,
+                        subjectId: 31,
+                        days: [1, 3, 5],
+                        type: 'theory',
+                        mode: 'onsite',
+                        classroom: 'A-203',
+                        startTime: '09:00',
+                        endTime: '10:00',
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          },
+
+          '400': {
+            description: 'El identificador de la materia no es un entero positivo válido.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiError' },
+                example: {
+                  success: false,
+                  message: 'El ID de la materia no es válido.',
+                },
+              },
+            },
+          },
+
+          '401': {
+            description: 'La cookie de acceso no existe, es inválida, expiró o pertenece a una sesión inactiva.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/AuthenticationError' },
+                example: {
+                  code: 'NO_ACCESS_TOKEN',
+                  message: 'Acceso denegado',
+                },
+              },
+            },
+          },
+
+          '404': {
+            description: 'La materia no existe o no pertenece al usuario autenticado.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiError' },
+                example: {
+                  success: false,
+                  message: 'La materia no existe o no te pertenece.',
+                },
+              },
+            },
+          },
+
+          '503': {
+            description: 'No fue posible comprobar que la sesión asociada al access token siga activa.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/AuthServiceUnavailable' },
+                example: {
+                  code: 'AUTH_SERVICE_UNAVAILABLE',
+                  message: 'El servicio de autenticación no está disponible',
+                },
+              },
+            },
+          },
+
+          '500': {
+            description: 'Error interno del servidor al obtener la materia.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiError' },
+                example: {
+                  success: false,
+                  message: 'Error interno del servidor.',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/subjects/{subjectId}/classes': {
+      post: {
+        tags: ['Subjects'],
+        operationId: 'createSubjectClasses',
+        summary: 'Crear clases para una materia',
+        description: [
+          'Crea una o más clases para una materia que pertenece al usuario autenticado.',
+          'Cada clase debe tener al menos un día, un tipo (`theory`, `laboratory` o `workshop`) y una modalidad (`onsite` u `online`).',
+          'El salón es opcional, pero debe omitirse o ser `null` cuando la modalidad es `online`.',
+          'Como toda operación que modifica datos bajo `/api`, requiere un encabezado `Origin` permitido.',
+        ].join(' '),
+        security: [
+          { cookieAuth: [] },
+        ],
+
+        parameters: [
+          { $ref: '#/components/parameters/SubjectId' },
+          { $ref: '#/components/parameters/AllowedOrigin' },
+        ],
+
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: createClassesJsonSchema,
+              example: {
+                classes: [
+                  {
+                    days: [1, 3, 5],
+                    type: 'theory',
+                    mode: 'onsite',
+                    classroom: 'A-203',
+                    startTime: '09:00',
+                    endTime: '10:00',
+                  },
+                  {
+                    days: [2],
+                    type: 'laboratory',
+                    mode: 'online',
+                    classroom: null,
+                    startTime: '11:00',
+                    endTime: '12:30',
+                  },
+                ],
+              },
+            },
+          },
+        },
+
+        responses: {
+          '201': {
+            description: 'Clases creadas correctamente.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/CreateClassesSuccess' },
+                example: {
+                  success: true,
+                  message: 'Clases creadas correctamente.',
+                  classes: [
+                    {
+                      id: 81,
+                      subjectId: 31,
+                      days: [1, 3, 5],
+                      type: 'theory',
+                      mode: 'onsite',
+                      classroom: 'A-203',
+                      startTime: '09:00',
+                      endTime: '10:00',
+                    },
+                    {
+                      id: 82,
+                      subjectId: 31,
+                      days: [2],
+                      type: 'laboratory',
+                      mode: 'online',
+                      classroom: null,
+                      startTime: '11:00',
+                      endTime: '12:30',
+                    },
+                  ],
+                },
+              },
+            },
+          },
+
+          '400': {
+            description: 'El identificador o las clases enviadas son inválidos.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiError' },
+                examples: {
+                  emptyClasses: {
+                    value: {
+                      success: false,
+                      message: 'Debes enviar al menos una clase.',
+                    },
+                  },
+                  invalidTimeRange: {
+                    value: {
+                      success: false,
+                      message: 'La hora de término debe ser posterior a la hora de inicio.',
+                    },
+                  },
+                },
+              },
+            },
+          },
+
+          '401': {
+            description: 'La cookie de acceso no existe, es inválida, expiró o pertenece a una sesión inactiva.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/AuthenticationError' },
+                example: {
+                  code: 'NO_ACCESS_TOKEN',
+                  message: 'Acceso denegado',
+                },
+              },
+            },
+          },
+
+          '403': {
+            description: 'El encabezado Origin falta o no está permitido.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/CsrfError' },
+                example: {
+                  code: 'INVALID_ORIGIN',
+                  message: 'Origen no permitido',
+                },
+              },
+            },
+          },
+
+          '404': {
+            description: 'La materia no existe o no pertenece al usuario autenticado.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiError' },
+                example: {
+                  success: false,
+                  message: 'La materia no existe o no te pertenece.',
+                },
+              },
+            },
+          },
+
+          '503': {
+            description: 'No fue posible comprobar que la sesión asociada al access token siga activa.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/AuthServiceUnavailable' },
+                example: {
+                  code: 'AUTH_SERVICE_UNAVAILABLE',
+                  message: 'El servicio de autenticación no está disponible',
+                },
+              },
+            },
+          },
+
+          '500': {
+            description: 'Error interno del servidor o configuración CSRF ausente.',
+            content: {
+              'application/json': {
+                schema: {
+                  oneOf: [
+                    { $ref: '#/components/schemas/ApiError' },
+                    { $ref: '#/components/schemas/CsrfConfigurationError' },
+                  ],
+                },
+                examples: {
+                  internalError: {
+                    value: {
+                      success: false,
+                      message: 'Error interno del servidor.',
+                    },
+                  },
+                  csrfNotConfigured: {
+                    value: {
+                      code: 'CSRF_ORIGIN_NOT_CONFIGURED',
+                      message: 'Error interno del servidor',
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   },
 
   components: {
@@ -2190,6 +2613,29 @@ export const openApiDocument = {
           },
         },
       },
+      SubjectWithClasses: {
+        allOf: [
+          { $ref: '#/components/schemas/Subject' },
+          {
+            type: 'object',
+            required: ['classes'],
+            properties: {
+              classes: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/Class' },
+              },
+            },
+          },
+        ],
+      },
+      SubjectWithClassesSuccess: {
+        type: 'object',
+        required: ['success', 'data'],
+        properties: {
+          success: { type: 'boolean', const: true },
+          data: { $ref: '#/components/schemas/SubjectWithClasses' },
+        },
+      },
       Class: {
         type: 'object',
         required: ['days', 'startTime', 'endTime', 'mode', 'classroom', 'type'],
@@ -2274,6 +2720,29 @@ export const openApiDocument = {
         properties: {
           success: { type: 'boolean', const: true },
           message: { type: 'string', const: 'Materia eliminada correctamente.' },
+        },
+      },
+      CreateClassesSuccess: {
+        type: 'object',
+        required: ['success', 'message', 'classes'],
+        properties: {
+          success: { type: 'boolean', const: true },
+          message: { type: 'string', const: 'Clases creadas correctamente.' },
+          classes: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/Class' },
+          },
+        },
+      },
+      ClassListSuccess: {
+        type: 'object',
+        required: ['success', 'data'],
+        properties: {
+          success: { type: 'boolean', const: true },
+          data: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/Class' },
+          },
         },
       },
       PeriodListSuccess: {

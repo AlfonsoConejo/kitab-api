@@ -1,5 +1,4 @@
 import type { Pool, PoolClient } from 'pg';
-import type { ClassRow } from '../../subjects/subjects.types.js';
 import type { PeriodInput } from '../periods.schemas.js';
 import type { CalendarClassRow, PeriodRow } from '../periods.types.js';
 
@@ -16,6 +15,5 @@ export interface PeriodsRepository {
   ): Promise<PeriodRow>;
   updatePeriod(periodId: number, input: PeriodInput): Promise<PeriodRow | null>;
   deletePeriod(periodId: number): Promise<void>;
-  listClasses(periodId: number): Promise<ClassRow[]>;
   listCalendarClasses(periodId: number): Promise<CalendarClassRow[]>;
 }

@@ -2,7 +2,6 @@ import type { Pool, PoolClient } from 'pg';
 import { pool } from '../../../config/db.js';
 import { PeriodNotFoundError } from '../periods.errors.js';
 import type { CalendarClassRow, PeriodRow } from '../periods.types.js';
-import type { ClassRow } from '../../subjects/subjects.types.js';
 import type { PeriodInput } from '../periods.schemas.js';
 import { toPeriodRecord } from '../periods.mapper.js';
 import type { PeriodsRepository } from '../application/periods.repository.js';
@@ -82,18 +81,6 @@ export class PgPeriodsRepository implements PeriodsRepository {
        WHERE id = $1`, 
       [periodId]
     );
-  }
-
-  // Obtiene todas las clases de las materias de un período en orden de horario.
-  async listClasses(periodId: number): Promise<ClassRow[]> {
-    const result = await this.database.query<ClassRow>(
-      `SELECT c.id, c.subject_id, s.name AS subject_name, c.days, c.start_time, c.end_time, c.mode, c.classroom, c.type
-       FROM classes c JOIN subjects s ON c.subject_id = s.id
-       WHERE s.period_id = $1
-       ORDER BY (SELECT MIN(day) FROM unnest(c.days) AS day), c.start_time, s.name, c.id`,
-      [periodId],
-    );
-    return result.rows;
   }
 
   // Obtiene las clases con los datos de materia necesarios para generar eventos del calendario.

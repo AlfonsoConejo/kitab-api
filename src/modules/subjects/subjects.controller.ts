@@ -45,6 +45,30 @@ export async function getSubjectsByPeriod(
   }
 }
 
+// Obtiene las clases de todas las materias de un período del usuario autenticado.
+export async function getClassesByPeriod(
+  request: AuthenticatedRequest,
+  response: Response,
+) {
+  const userId = getUserIdOrRespond(request, response);
+
+  if (!userId) {
+    return;
+  }
+
+  try {
+    const periodId = periodIdFrom(request);
+    const classes = await useCases.listClassesByPeriod(userId, periodId);
+
+    return response.status(200).json({
+      success: true,
+      data: classes,
+    });
+  } catch (error) {
+    return sendErrorResponse(response, error);
+  }
+}
+
 // Crea una materia y sus clases opcionales dentro de un período del usuario autenticado.
 export async function createSubject(
   request: AuthenticatedRequest,
