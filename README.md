@@ -51,9 +51,24 @@ Base path: `/api/periods`
 | GET | `/:periodId` | Get a specific academic period | ✅ |
 | PUT | `/:periodId` | Update an academic period | ✅ |
 | DELETE | `/:periodId` | Delete an academic period | ✅ |
-| GET | `/:periodId/subjects` | Get all subjects belonging to an academic period | ✅ |
-| POST | `/:periodId/subjects` | Create a new subject within an academic period | ✅ |
-| GET | `/:periodId/classes` | Get all classes associated with an academic period | ✅ |
+| GET | `/:periodId/calendar-events` | Get calendar events for an academic period | ✅ |
+
+### Subjects
+
+Base path: `/api/subjects`. This module also owns the subject and class routes scoped by an academic period.
+
+| Method | Endpoint | Description | Authentication |
+|--------|----------|-------------|----------------|
+| POST | `/api/periods/:periodId/subjects` | Create a new subject within an academic period | ✅ |
+| GET | `/api/periods/:periodId/subjects` | Get all subjects belonging to an academic period | ✅ |
+| PUT | `/:subjectId` | Update a subject and its classes | ✅ |
+| DELETE | `/:subjectId` | Delete a subject | ✅ |
+| POST | `/:subjectId/classes` | Create one or more classes for a subject | ✅ |
+| GET | `/:subjectId/with-classes` | Get a subject with all of its associated classes | ✅ |
+| GET | `/api/periods/:periodId/classes` | Get all classes associated with an academic period | ✅ |
+| POST | `/api/periods/:periodId/classes/conflicts/external` | Find schedule conflicts while creating a subject | ✅ |
+| POST | `/:subjectId/classes/conflicts/external` | Find schedule conflicts while editing a subject | ✅ |
+| POST | `/classes/conflicts/internal` | Find schedule conflicts between classes in the request payload | ✅ |
 
 ### Days Off
 
@@ -66,21 +81,6 @@ Collection endpoints: `/api/periods/:periodId/days-off`. Individual-resource end
 | GET | `/api/days-off/:dayOffId` | Get a specific day off and infer its academic period | ✅ |
 | PUT | `/api/days-off/:dayOffId` | Update a day off and infer its academic period | ✅ |
 | DELETE | `/api/days-off/:dayOffId` | Delete a day off and infer its academic period | ✅ |
-
-### Subjects
-
-Base path: `/api/subjects`
-
-| Method | Endpoint | Description | Authentication |
-|--------|----------|-------------|----------------|
-| PUT | `/:subjectId` | Update a subject and its classes | ✅ |
-| POST | `/:subjectId/classes` | Create one or more classes for a subject | ✅ |
-| DELETE | `/:subjectId` | Delete a subject | ✅ |
-| GET | `/:subjectId/with-classes` | Get a subject with all of its associated classes | ✅ |
-| POST | `/periods/:periodId/classes/conflicts/external` | Find schedule conflicts while creating a subject | ✅ |
-| POST | `/subjects/:subjectId/classes/conflicts/external` | Find schedule conflicts while editing a subject | ✅ |
-| POST | `/classes/check-internal-conflicts` | Find schedule conflicts between classes in the request payload | ✅ |
-
 
 ## Response Format
 

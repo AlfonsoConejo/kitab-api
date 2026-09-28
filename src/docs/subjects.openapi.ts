@@ -309,160 +309,6 @@ export const subjectPaths = {
         },
       },
     },
-    '/api/periods/{periodId}/classes/conflicts/external': {
-      post: {
-        tags: ['Subjects'],
-        operationId: 'checkExternalClassConflictsByPeriod',
-        summary: 'Buscar conflictos externos de clases',
-        description: [
-          'Compara las clases propuestas contra las clases persistidas de otras materias del período.',
-          'Úsalo al crear una materia, cuando todavía no existe un `subjectId` que pueda excluirse.',
-          '`id` y `tempId` son opcionales y solo identifican una clase propuesta dentro de la respuesta.',
-          'Como toda operación que modifica datos bajo `/api`, requiere un encabezado `Origin` permitido.',
-        ].join(' '),
-        security: [
-          { cookieAuth: [] },
-        ],
-
-        parameters: [
-          { $ref: '#/components/parameters/PeriodId' },
-          { $ref: '#/components/parameters/AllowedOrigin' },
-        ],
-
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: externalConflictsJsonSchema,
-              example: {
-                classes: [
-                  {
-                    tempId: 'new-class-1',
-                    days: [1, 3],
-                    startTime: '09:30',
-                    endTime: '10:30',
-                  },
-                ],
-              },
-            },
-          },
-        },
-
-        responses: {
-          '200': {
-            description: 'Resultado del análisis. Un arreglo vacío indica que no se encontraron conflictos externos.',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/ExternalConflictsSuccess' },
-                example: {
-                  success: true,
-                  externalConflicts: [
-                    {
-                      id: 'new-class-1',
-                      conflictDays: [1, 3],
-                      subject: 'Álgebra lineal',
-                      startTime: '09:00',
-                      endTime: '10:00',
-                    },
-                  ],
-                },
-              },
-            },
-          },
-
-          '400': {
-            description: 'El identificador del período o los horarios enviados son inválidos.',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/ApiError' },
-                example: {
-                  success: false,
-                  message: 'La hora de término debe ser posterior a la hora de inicio.',
-                },
-              },
-            },
-          },
-
-          '401': {
-            description: 'La cookie de acceso no existe, es inválida, expiró o pertenece a una sesión inactiva.',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/AuthenticationError' },
-                example: {
-                  code: 'NO_ACCESS_TOKEN',
-                  message: 'Acceso denegado',
-                },
-              },
-            },
-          },
-
-          '403': {
-            description: 'El encabezado Origin falta o no está permitido.',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/CsrfError' },
-                example: {
-                  code: 'INVALID_ORIGIN',
-                  message: 'Origen no permitido',
-                },
-              },
-            },
-          },
-
-          '404': {
-            description: 'El período no existe o no pertenece al usuario autenticado.',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/ApiError' },
-                example: {
-                  success: false,
-                  message: 'El periodo no existe o no te pertenece.',
-                },
-              },
-            },
-          },
-
-          '503': {
-            description: 'No fue posible comprobar que la sesión asociada al access token siga activa.',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/AuthServiceUnavailable' },
-                example: {
-                  code: 'AUTH_SERVICE_UNAVAILABLE',
-                  message: 'El servicio de autenticación no está disponible',
-                },
-              },
-            },
-          },
-
-          '500': {
-            description: 'Error interno del servidor o configuración CSRF ausente.',
-            content: {
-              'application/json': {
-                schema: {
-                  oneOf: [
-                    { $ref: '#/components/schemas/ApiError' },
-                    { $ref: '#/components/schemas/CsrfConfigurationError' },
-                  ],
-                },
-                examples: {                  internalError: {
-                    value: {
-                      success: false,
-                      message: 'Error interno del servidor.',
-                    },
-                  },
-                  csrfNotConfigured: {                    value: {
-                      code: 'CSRF_ORIGIN_NOT_CONFIGURED',
-                      message: 'Error interno del servidor',
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
     '/api/periods/{periodId}/classes': {
       get: {
         tags: ['Subjects'],
@@ -1218,6 +1064,160 @@ export const subjectPaths = {
                   },
                   csrfNotConfigured: {
                     value: {
+                      code: 'CSRF_ORIGIN_NOT_CONFIGURED',
+                      message: 'Error interno del servidor',
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/periods/{periodId}/classes/conflicts/external': {
+      post: {
+        tags: ['Subjects'],
+        operationId: 'checkExternalClassConflictsByPeriod',
+        summary: 'Buscar conflictos externos de clases',
+        description: [
+          'Compara las clases propuestas contra las clases persistidas de otras materias del período.',
+          'Úsalo al crear una materia, cuando todavía no existe un `subjectId` que pueda excluirse.',
+          '`id` y `tempId` son opcionales y solo identifican una clase propuesta dentro de la respuesta.',
+          'Como toda operación que modifica datos bajo `/api`, requiere un encabezado `Origin` permitido.',
+        ].join(' '),
+        security: [
+          { cookieAuth: [] },
+        ],
+
+        parameters: [
+          { $ref: '#/components/parameters/PeriodId' },
+          { $ref: '#/components/parameters/AllowedOrigin' },
+        ],
+
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: externalConflictsJsonSchema,
+              example: {
+                classes: [
+                  {
+                    tempId: 'new-class-1',
+                    days: [1, 3],
+                    startTime: '09:30',
+                    endTime: '10:30',
+                  },
+                ],
+              },
+            },
+          },
+        },
+
+        responses: {
+          '200': {
+            description: 'Resultado del análisis. Un arreglo vacío indica que no se encontraron conflictos externos.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ExternalConflictsSuccess' },
+                example: {
+                  success: true,
+                  externalConflicts: [
+                    {
+                      id: 'new-class-1',
+                      conflictDays: [1, 3],
+                      subject: 'Álgebra lineal',
+                      startTime: '09:00',
+                      endTime: '10:00',
+                    },
+                  ],
+                },
+              },
+            },
+          },
+
+          '400': {
+            description: 'El identificador del período o los horarios enviados son inválidos.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiError' },
+                example: {
+                  success: false,
+                  message: 'La hora de término debe ser posterior a la hora de inicio.',
+                },
+              },
+            },
+          },
+
+          '401': {
+            description: 'La cookie de acceso no existe, es inválida, expiró o pertenece a una sesión inactiva.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/AuthenticationError' },
+                example: {
+                  code: 'NO_ACCESS_TOKEN',
+                  message: 'Acceso denegado',
+                },
+              },
+            },
+          },
+
+          '403': {
+            description: 'El encabezado Origin falta o no está permitido.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/CsrfError' },
+                example: {
+                  code: 'INVALID_ORIGIN',
+                  message: 'Origen no permitido',
+                },
+              },
+            },
+          },
+
+          '404': {
+            description: 'El período no existe o no pertenece al usuario autenticado.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiError' },
+                example: {
+                  success: false,
+                  message: 'El periodo no existe o no te pertenece.',
+                },
+              },
+            },
+          },
+
+          '503': {
+            description: 'No fue posible comprobar que la sesión asociada al access token siga activa.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/AuthServiceUnavailable' },
+                example: {
+                  code: 'AUTH_SERVICE_UNAVAILABLE',
+                  message: 'El servicio de autenticación no está disponible',
+                },
+              },
+            },
+          },
+
+          '500': {
+            description: 'Error interno del servidor o configuración CSRF ausente.',
+            content: {
+              'application/json': {
+                schema: {
+                  oneOf: [
+                    { $ref: '#/components/schemas/ApiError' },
+                    { $ref: '#/components/schemas/CsrfConfigurationError' },
+                  ],
+                },
+                examples: {                  internalError: {
+                    value: {
+                      success: false,
+                      message: 'Error interno del servidor.',
+                    },
+                  },
+                  csrfNotConfigured: {                    value: {
                       code: 'CSRF_ORIGIN_NOT_CONFIGURED',
                       message: 'Error interno del servidor',
                     },
