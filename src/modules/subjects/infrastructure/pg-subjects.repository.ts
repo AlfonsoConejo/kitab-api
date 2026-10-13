@@ -1,5 +1,6 @@
 import type { Pool, PoolClient } from 'pg';
 import { pool } from '../../../config/db.js';
+import type { SubjectsRepository } from '../application/subjects.repository.js';
 import { ClassNotFoundError, PeriodNotFoundError, SubjectNotFoundError } from '../subjects.errors.js';
 import { toSubjectRecord } from '../subjects.mapper.js';
 import type { ClassInput, CreateSubjectInput, SubjectUpdateInput } from '../subjects.schemas.js';
@@ -7,7 +8,7 @@ import type { ClassRow, SubjectRow } from '../subjects.types.js';
 
 type DatabaseClient = Pool | PoolClient;
 
-export class PgSubjectsRepository {
+export class PgSubjectsRepository implements SubjectsRepository {
   constructor(readonly database: Pool = pool) {}
 
   async getOwnedSubject(

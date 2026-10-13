@@ -8,10 +8,10 @@ import {
   type ConflictClassInput,
   type SubjectUpdateInput,
 } from '../subjects.schemas.js';
-import { PgSubjectsRepository } from '../infrastructure/pg-subjects.repository.js';
+import type { SubjectsRepository } from './subjects.repository.js';
 
 export class SubjectsUseCases {
-  constructor(private readonly subjects: PgSubjectsRepository) {}
+  constructor(private readonly subjects: SubjectsRepository) {}
 
   async createClasses(userId: number, subjectId: number, classes: ClassInput[]) {
     return withTransaction(this.subjects.database, async (client) => {
